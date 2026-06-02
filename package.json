@@ -12,7 +12,7 @@
     "db:seed": "prisma db seed",
     "db:setup": "npm run db:push && npm run db:seed",
     "db:studio": "prisma studio",
-    "db:reset": "rm -f prisma/dev.db && npm run db:setup"
+    "db:reset": "node scripts/db-reset.mjs"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
