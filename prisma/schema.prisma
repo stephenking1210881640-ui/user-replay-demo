@@ -1,0 +1,283 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum ApplicationStatus {
+  CONNECTED
+  DEGRADED
+  PENDING
+}
+
+enum TagType {
+  USER
+  JOURNEY
+}
+
+enum JourneyResultStatus {
+  COMPLETED
+  ABANDONED
+  FAILED
+  BROWSING
+}
+
+enum JourneyEventType {
+  PAGE_VIEW
+  REGION_ACTION
+  BUSINESS_ACTION
+  REQUEST
+  STATE_CHANGE
+  FEEDBACK
+  ANOMALY
+  EXIT
+}
+
+enum EvidenceType {
+  SCREENSHOT
+  TOAST
+  NETWORK
+  ERROR_NOTE
+  DOM_SNAPSHOT
+}
+
+enum EvidenceSeverity {
+  INFO
+  WARNING
+  CRITICAL
+}
+
+enum FindingCategory {
+  INSIGHT
+  INTERACTION
+  TECHNICAL
+}
+
+model Application {
+  id              String            @id @default(cuid())
+  name            String
+  appKey          String            @unique
+  host            String
+  description     String
+  status          ApplicationStatus @default(CONNECTED)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  lastReportedAt  DateTime?
+  users           User[]
+  tags            Tag[]
+  journeys        Journey[]
+  projects        Project[]
+  integrationLogs IntegrationLog[]
+}
+
+model User {
+  id            String   @id @default(cuid())
+  applicationId String
+  externalId    String
+  name          String
+  email         String?
+  avatarSeed    String
+  deviceType    String
+  os            String
+  browser       String
+  location      String?
+  firstSeenAt   DateTime
+  lastActiveAt  DateTime
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  userTags      UserTag[]
+  journeys      Journey[]
+
+  @@unique([applicationId, externalId])
+  @@index([applicationId, lastActiveAt])
+}
+
+model Tag {
+  id            String   @id @default(cuid())
+  applicationId String
+  name          String
+  type          TagType
+  color         String
+  description   String?
+  createdAt     DateTime @default(now())
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  userTags      UserTag[]
+  journeyTags   JourneyTag[]
+
+  @@unique([applicationId, type, name])
+  @@index([applicationId, type])
+}
+
+model UserTag {
+  id        String   @id @default(cuid())
+  userId     String
+  tagId      String
+  createdAt  DateTime @default(now())
+  user       User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tag        Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, tagId])
+}
+
+model Journey {
+  id                  String              @id @default(cuid())
+  applicationId       String
+  userId              String
+  journeyCode         String              @unique
+  title               String
+  startedAt           DateTime
+  endedAt             DateTime
+  totalDurationMs     Int
+  effectiveDurationMs Int
+  pageCount           Int
+  keyActionCount      Int
+  requestCount        Int
+  resultStatus        JourneyResultStatus
+  hasAnomaly          Boolean             @default(false)
+  pageUrl             String
+  pageTemplate        String
+  pageTitle           String
+  businessActionType  String
+  aiSummaryShort      String
+  aiScenarioSummary   String
+  aiProcessSummary    String
+  aiGoalAnalysis      String
+  aiAnomalyAnalysis   String
+  createdAt           DateTime            @default(now())
+  application         Application         @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  user                User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  journeyTags         JourneyTag[]
+  projectJourneys     ProjectJourney[]
+  events              JourneyEvent[]
+  evidences           Evidence[]
+
+  @@index([applicationId, startedAt])
+  @@index([userId, startedAt])
+  @@index([pageTemplate])
+  @@index([resultStatus, hasAnomaly])
+}
+
+model JourneyTag {
+  id         String   @id @default(cuid())
+  journeyId  String
+  tagId      String
+  createdAt  DateTime @default(now())
+  journey    Journey  @relation(fields: [journeyId], references: [id], onDelete: Cascade)
+  tag        Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([journeyId, tagId])
+}
+
+model Project {
+  id                   String   @id @default(cuid())
+  applicationId        String
+  name                 String
+  goal                 String
+  focusArea            String
+  ownerName            String
+  description          String
+  filterTimeRangeLabel String?
+  filterPageTemplates  String?
+  filterStatuses       String?
+  filterTagRules       String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  application          Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  projectJourneys      ProjectJourney[]
+  findings             ProjectFinding[]
+
+  @@index([applicationId, createdAt])
+}
+
+model ProjectJourney {
+  id         String   @id @default(cuid())
+  projectId  String
+  journeyId  String
+  addedAt    DateTime @default(now())
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  journey    Journey  @relation(fields: [journeyId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, journeyId])
+}
+
+model JourneyEvent {
+  id              String           @id @default(cuid())
+  journeyId       String
+  seq             Int
+  occurredAt      DateTime
+  offsetMs        Int
+  type            JourneyEventType
+  title           String
+  description     String
+  pageUrl         String?
+  pageTemplate    String?
+  pageTitle       String?
+  region          String?
+  regionSource    String?
+  uiAction        String?
+  businessAction  String?
+  businessIntent  String?
+  targetLabel     String?
+  requestHost     String?
+  method          String?
+  pathTemplate    String?
+  statusCode      Int?
+  durationMs      Int?
+  requestOutcome  String?
+  uiFeedback      String?
+  isKeyEvent      Boolean          @default(true)
+  isAnomaly       Boolean          @default(false)
+  journey         Journey          @relation(fields: [journeyId], references: [id], onDelete: Cascade)
+  evidences       Evidence[]
+
+  @@unique([journeyId, seq])
+  @@index([journeyId, occurredAt])
+}
+
+model Evidence {
+  id             String           @id @default(cuid())
+  journeyId      String
+  journeyEventId String?
+  type           EvidenceType
+  title          String
+  description    String
+  severity       EvidenceSeverity
+  imageUrl       String?
+  content        String?
+  capturedAt     DateTime
+  offsetMs       Int
+  journey        Journey          @relation(fields: [journeyId], references: [id], onDelete: Cascade)
+  journeyEvent   JourneyEvent?    @relation(fields: [journeyEventId], references: [id], onDelete: SetNull)
+
+  @@index([journeyId, offsetMs])
+}
+
+model IntegrationLog {
+  id             String   @id @default(cuid())
+  applicationId  String
+  level          String
+  status         String
+  source         String
+  message        String
+  payloadSummary String?
+  createdAt      DateTime @default(now())
+  application    Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId, createdAt])
+}
+
+model ProjectFinding {
+  id                   String          @id @default(cuid())
+  projectId            String
+  title                String
+  summary              String
+  category             FindingCategory
+  evidenceJourneyCount Int
+  sortOrder            Int
+  createdAt            DateTime        @default(now())
+  project              Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, sortOrder])
+}
