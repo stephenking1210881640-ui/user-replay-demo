@@ -8,6 +8,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { applicationStatusLabelMap, getApplicationOverview } from "@/lib/data";
 import { formatDateTimeFull, formatRelativeTime } from "@/lib/format";
 
+export const dynamic = "force-dynamic";
+
 const codeSnippet = `<script>
   window.InsightFlow = window.InsightFlow || [];
   InsightFlow.push(["init", {
@@ -147,4 +149,3 @@ export default async function IntegrationPage() {
     </div>
   );
 }
-

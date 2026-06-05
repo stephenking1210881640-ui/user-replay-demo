@@ -11,6 +11,8 @@ import { getJourneys, journeyStatusLabelMap } from "@/lib/data";
 import { formatDateTimeFull, formatDuration } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
+export const dynamic = "force-dynamic";
+
 export default async function JourneysPage({
   searchParams,
 }: {
@@ -204,4 +206,3 @@ export default async function JourneysPage({
     </div>
   );
 }
-

@@ -1,8 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Share2, Tag } from "lucide-react";
 
-import { AddToProjectDialog } from "@/components/journeys/add-to-project-dialog";
 import { JourneyPlayback } from "@/components/journeys/journey-playback";
 import { PageHeader } from "@/components/layout/page-header";
 import { StatusPill } from "@/components/shared/status-pill";
@@ -11,9 +9,11 @@ import { getJourneyDetail, journeyStatusLabelMap } from "@/lib/data";
 import { formatDateTimeFull } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
+export const dynamic = "force-dynamic";
+
 export default async function JourneyDetailPage({ params }: { params: { id: string } }) {
   try {
-    const { journey, projects } = await getJourneyDetail(params.id);
+    const { journey, projects, availableJourneyTags } = await getJourneyDetail(params.id);
 
     const serializedJourney = {
       id: journey.id,
@@ -26,14 +26,19 @@ export default async function JourneyDetailPage({ params }: { params: { id: stri
       pageUrl: journey.pageUrl,
       pageTemplate: journey.pageTemplate,
       pageTitle: journey.pageTitle,
-      resultStatus: journey.resultStatus,
+      resultStatusLabel: journeyStatusLabelMap[journey.resultStatus],
       hasAnomaly: journey.hasAnomaly,
+      businessActionType: journey.businessActionType,
+      pageCount: journey.pageCount,
+      keyActionCount: journey.keyActionCount,
+      requestCount: journey.requestCount,
       aiSummaryShort: journey.aiSummaryShort,
       aiScenarioSummary: journey.aiScenarioSummary,
       aiProcessSummary: journey.aiProcessSummary,
       aiGoalAnalysis: journey.aiGoalAnalysis,
       aiAnomalyAnalysis: journey.aiAnomalyAnalysis,
       user: {
+        id: journey.user.id,
         externalId: journey.user.externalId,
         name: journey.user.name,
         deviceType: journey.user.deviceType,
@@ -59,9 +64,11 @@ export default async function JourneyDetailPage({ params }: { params: { id: stri
       description: event.description,
       occurredAt: event.occurredAt.toISOString(),
       offsetMs: event.offsetMs,
+      pageUrl: event.pageUrl,
       pageTemplate: event.pageTemplate,
       pageTitle: event.pageTitle,
       region: event.region,
+      regionSource: event.regionSource,
       uiAction: event.uiAction,
       businessAction: event.businessAction,
       businessIntent: event.businessIntent,
@@ -78,10 +85,12 @@ export default async function JourneyDetailPage({ params }: { params: { id: stri
 
     const serializedEvidences = journey.evidences.map((evidence) => ({
       id: evidence.id,
+      journeyEventId: evidence.journeyEventId,
       type: evidence.type,
       title: evidence.title,
       description: evidence.description,
       severity: evidence.severity,
+      imageUrl: evidence.imageUrl,
       content: evidence.content,
       offsetMs: evidence.offsetMs,
       capturedAt: evidence.capturedAt.toISOString(),
@@ -101,9 +110,18 @@ export default async function JourneyDetailPage({ params }: { params: { id: stri
               <div className="flex items-center gap-2">
                 <StatusPill
                   label={journeyStatusLabelMap[journey.resultStatus]}
-                  tone={journey.resultStatus === "FAILED" ? "error" : journey.resultStatus === "COMPLETED" ? "success" : "warning"}
+                  tone={
+                    journey.resultStatus === "FAILED"
+                      ? "error"
+                      : journey.resultStatus === "COMPLETED"
+                        ? "success"
+                        : "warning"
+                  }
                 />
-                <StatusPill label={journey.hasAnomaly ? "高危异常" : "无明显异常"} tone={journey.hasAnomaly ? "error" : "neutral"} />
+                <StatusPill
+                  label={journey.hasAnomaly ? "高危异常" : "无明显异常"}
+                  tone={journey.hasAnomaly ? "error" : "neutral"}
+                />
               </div>
             </>
           }
@@ -113,21 +131,8 @@ export default async function JourneyDetailPage({ params }: { params: { id: stri
           <div className="text-sm text-slate-500">用户：{journey.user.externalId}</div>
           <div className="text-sm text-slate-500">设备：{journey.user.deviceType}</div>
           <div className="text-sm text-slate-500">页面：{journey.pageTemplate}</div>
-          <div className="ml-auto flex flex-wrap gap-2">
-            <button className={cn(buttonVariants({ variant: "outline" }), "h-9 px-3")}>
-              <Tag className="h-4 w-4" />
-              加标签
-            </button>
-            <AddToProjectDialog
-              journeyId={journey.id}
-              projects={projects}
-              currentProjectIds={journey.projectJourneys.map(({ project }) => project.id)}
-              triggerLabel="加入研究项目"
-            />
-            <button className={cn(buttonVariants({ variant: "default" }), "h-9 px-3")}>
-              <Share2 className="h-4 w-4" />
-              分享
-            </button>
+          <div className="ml-auto text-sm text-slate-500">
+            关键动作 {journey.keyActionCount} · 请求 {journey.requestCount}
           </div>
         </div>
 
@@ -136,6 +141,7 @@ export default async function JourneyDetailPage({ params }: { params: { id: stri
           events={serializedEvents}
           evidences={serializedEvidences}
           projects={projects}
+          availableJourneyTags={availableJourneyTags}
         />
       </div>
     );

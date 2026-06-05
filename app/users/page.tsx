@@ -10,6 +10,8 @@ import { getUsers } from "@/lib/data";
 import { formatRelativeTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
+export const dynamic = "force-dynamic";
+
 export default async function UsersPage({
   searchParams,
 }: {
@@ -156,4 +158,3 @@ export default async function UsersPage({
     </div>
   );
 }
-

@@ -2,12 +2,15 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { PageHeader } from "@/components/layout/page-header";
+import { AssignTagDialog } from "@/components/shared/assign-tag-dialog";
 import { SectionCard } from "@/components/shared/section-card";
 import { TagChip } from "@/components/shared/tag-chip";
 import { buttonVariants } from "@/components/ui/button";
 import { getUserDetail } from "@/lib/data";
 import { formatDateTimeFull, formatRelativeTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
+
+export const dynamic = "force-dynamic";
 
 function topCounts(values: string[]) {
   const countMap = new Map<string, number>();
@@ -19,7 +22,7 @@ function topCounts(values: string[]) {
 
 export default async function UserDetailPage({ params }: { params: { id: string } }) {
   try {
-    const user = await getUserDetail(params.id);
+    const { user, availableTags } = await getUserDetail(params.id);
     const latestJourney = user.journeys[0] ?? null;
     const commonPages = topCounts(user.journeys.map((journey) => journey.pageTemplate));
     const commonActions = topCounts(user.journeys.map((journey) => journey.businessActionType));
@@ -32,14 +35,23 @@ export default async function UserDetailPage({ params }: { params: { id: string 
           title={`${user.externalId} · ${user.name}`}
           subtitle={`最近活跃 ${formatRelativeTime(user.lastActiveAt)} · ${user.deviceType} · ${user.os}`}
           actions={
-            latestJourney ? (
-              <Link
-                href={`/journeys/${latestJourney.id}`}
-                className={cn(buttonVariants({ variant: "default" }), "h-10 px-4")}
-              >
-                播放最新旅程
-              </Link>
-            ) : null
+            <>
+              {latestJourney ? (
+                <Link
+                  href={`/journeys/${latestJourney.id}`}
+                  className={cn(buttonVariants({ variant: "default" }), "h-10 px-4")}
+                >
+                  播放最新旅程
+                </Link>
+              ) : null}
+              <AssignTagDialog
+                entityId={user.id}
+                entityType="users"
+                title="为用户添加标签"
+                description="补充用户画像标签，便于在列表与研究中筛选。"
+                tags={availableTags}
+              />
+            </>
           }
         />
 
@@ -76,10 +88,20 @@ export default async function UserDetailPage({ params }: { params: { id: string 
           </SectionCard>
 
           <SectionCard title="标签画像">
-            <div className="flex flex-wrap gap-2">
-              {user.userTags.map(({ tag }) => (
-                <TagChip key={tag.id} label={tag.name} color={tag.color} />
-              ))}
+            <div className="space-y-3">
+              <div className="flex flex-wrap gap-2">
+                {user.userTags.map(({ tag }) => (
+                  <TagChip key={tag.id} label={tag.name} color={tag.color} />
+                ))}
+              </div>
+              <AssignTagDialog
+                entityId={user.id}
+                entityType="users"
+                title="为用户添加标签"
+                description="统一维护用户标签，避免画像语义分散。"
+                tags={availableTags}
+                triggerLabel="补充标签"
+              />
             </div>
           </SectionCard>
         </div>

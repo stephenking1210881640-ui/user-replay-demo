@@ -15,9 +15,10 @@ import {
 import { cn } from "@/lib/utils";
 
 const navItems = [
-  { href: "/integration", label: "应用概览", icon: LayoutGrid },
+  { href: "/overview", label: "平台概览", icon: LayoutGrid },
+  { href: "/integration", label: "应用接入", icon: LayoutGrid },
   { href: "/users", label: "用户管理", icon: Users },
-  { href: "/tags", label: "标签管理", icon: Tags, disabled: true },
+  { href: "/tags", label: "标签管理", icon: Tags },
   { href: "/projects", label: "研究项目", icon: FolderKanban },
   { href: "/journeys", label: "用户旅程", icon: Search },
   { href: "/settings", label: "设置中心", icon: Settings, disabled: true },
@@ -41,9 +42,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {navItems.map(({ href, label, icon: Icon, disabled }) => {
             const active =
               pathname === href ||
+              (href.startsWith("/overview") && pathname.startsWith("/overview")) ||
+              (href.startsWith("/integration") && pathname.startsWith("/integration")) ||
               (href.startsWith("/projects") && pathname.startsWith("/projects")) ||
               (href.startsWith("/journeys") && pathname.startsWith("/journeys")) ||
-              (href.startsWith("/users") && pathname.startsWith("/users"));
+              (href.startsWith("/users") && pathname.startsWith("/users")) ||
+              (href.startsWith("/tags") && pathname.startsWith("/tags"));
 
             return (
               <Link

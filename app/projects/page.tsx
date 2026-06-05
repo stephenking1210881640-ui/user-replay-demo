@@ -7,6 +7,8 @@ import { getProjectList } from "@/lib/data";
 import { formatDateTimeFull } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
+export const dynamic = "force-dynamic";
+
 export default async function ProjectsPage() {
   const projects = await getProjectList();
 
@@ -16,7 +18,11 @@ export default async function ProjectsPage() {
 
       <div className="grid gap-4 xl:grid-cols-2">
         {projects.map((project) => (
-          <SectionCard key={project.id} title={project.name} description={project.focusArea}>
+          <SectionCard
+            key={project.id}
+            title={project.name}
+            description={`${project.projectCode ?? "未编号"} · ${project.focusTarget || project.focusArea} / ${project.focusFeature || project.focusArea}`}
+          >
             <p className="text-sm leading-7 text-slate-600">{project.goal}</p>
             <div className="mt-4 flex items-center justify-between text-sm text-slate-500">
               <div>
@@ -36,4 +42,3 @@ export default async function ProjectsPage() {
     </div>
   );
 }
-

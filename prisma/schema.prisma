@@ -18,6 +18,12 @@ enum TagType {
   JOURNEY
 }
 
+enum TagSource {
+  SYSTEM
+  MANUAL
+  RULE
+}
+
 enum JourneyResultStatus {
   COMPLETED
   ABANDONED
@@ -74,7 +80,7 @@ model Application {
 }
 
 model User {
-  id            String   @id @default(cuid())
+  id            String      @id @default(cuid())
   applicationId String
   externalId    String
   name          String
@@ -95,14 +101,16 @@ model User {
 }
 
 model Tag {
-  id            String   @id @default(cuid())
+  id            String       @id @default(cuid())
   applicationId String
   name          String
   type          TagType
+  source        TagSource    @default(MANUAL)
   color         String
   description   String?
-  createdAt     DateTime @default(now())
-  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @default(now()) @updatedAt
+  application   Application  @relation(fields: [applicationId], references: [id], onDelete: Cascade)
   userTags      UserTag[]
   journeyTags   JourneyTag[]
 
@@ -112,11 +120,11 @@ model Tag {
 
 model UserTag {
   id        String   @id @default(cuid())
-  userId     String
-  tagId      String
-  createdAt  DateTime @default(now())
-  user       User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tag        Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  userId    String
+  tagId     String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tag       Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
 
   @@unique([userId, tagId])
 }
@@ -160,31 +168,34 @@ model Journey {
 }
 
 model JourneyTag {
-  id         String   @id @default(cuid())
-  journeyId  String
-  tagId      String
-  createdAt  DateTime @default(now())
-  journey    Journey  @relation(fields: [journeyId], references: [id], onDelete: Cascade)
-  tag        Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  id        String   @id @default(cuid())
+  journeyId String
+  tagId     String
+  createdAt DateTime @default(now())
+  journey   Journey  @relation(fields: [journeyId], references: [id], onDelete: Cascade)
+  tag       Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
 
   @@unique([journeyId, tagId])
 }
 
 model Project {
-  id                   String   @id @default(cuid())
+  id                   String           @id @default(cuid())
   applicationId        String
+  projectCode          String?          @unique
   name                 String
   goal                 String
   focusArea            String
+  focusTarget          String           @default("")
+  focusFeature         String           @default("")
   ownerName            String
   description          String
   filterTimeRangeLabel String?
   filterPageTemplates  String?
   filterStatuses       String?
   filterTagRules       String?
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
-  application          Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+  application          Application      @relation(fields: [applicationId], references: [id], onDelete: Cascade)
   projectJourneys      ProjectJourney[]
   findings             ProjectFinding[]
 
@@ -192,45 +203,45 @@ model Project {
 }
 
 model ProjectJourney {
-  id         String   @id @default(cuid())
-  projectId  String
-  journeyId  String
-  addedAt    DateTime @default(now())
-  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  journey    Journey  @relation(fields: [journeyId], references: [id], onDelete: Cascade)
+  id        String   @id @default(cuid())
+  projectId String
+  journeyId String
+  addedAt   DateTime @default(now())
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  journey   Journey  @relation(fields: [journeyId], references: [id], onDelete: Cascade)
 
   @@unique([projectId, journeyId])
 }
 
 model JourneyEvent {
-  id              String           @id @default(cuid())
-  journeyId       String
-  seq             Int
-  occurredAt      DateTime
-  offsetMs        Int
-  type            JourneyEventType
-  title           String
-  description     String
-  pageUrl         String?
-  pageTemplate    String?
-  pageTitle       String?
-  region          String?
-  regionSource    String?
-  uiAction        String?
-  businessAction  String?
-  businessIntent  String?
-  targetLabel     String?
-  requestHost     String?
-  method          String?
-  pathTemplate    String?
-  statusCode      Int?
-  durationMs      Int?
-  requestOutcome  String?
-  uiFeedback      String?
-  isKeyEvent      Boolean          @default(true)
-  isAnomaly       Boolean          @default(false)
-  journey         Journey          @relation(fields: [journeyId], references: [id], onDelete: Cascade)
-  evidences       Evidence[]
+  id             String           @id @default(cuid())
+  journeyId      String
+  seq            Int
+  occurredAt     DateTime
+  offsetMs       Int
+  type           JourneyEventType
+  title          String
+  description    String
+  pageUrl        String?
+  pageTemplate   String?
+  pageTitle      String?
+  region         String?
+  regionSource   String?
+  uiAction       String?
+  businessAction String?
+  businessIntent String?
+  targetLabel    String?
+  requestHost    String?
+  method         String?
+  pathTemplate   String?
+  statusCode     Int?
+  durationMs     Int?
+  requestOutcome String?
+  uiFeedback     String?
+  isKeyEvent     Boolean          @default(true)
+  isAnomaly      Boolean          @default(false)
+  journey        Journey          @relation(fields: [journeyId], references: [id], onDelete: Cascade)
+  evidences      Evidence[]
 
   @@unique([journeyId, seq])
   @@index([journeyId, occurredAt])
@@ -255,14 +266,14 @@ model Evidence {
 }
 
 model IntegrationLog {
-  id             String   @id @default(cuid())
+  id             String      @id @default(cuid())
   applicationId  String
   level          String
   status         String
   source         String
   message        String
   payloadSummary String?
-  createdAt      DateTime @default(now())
+  createdAt      DateTime    @default(now())
   application    Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
 
   @@index([applicationId, createdAt])

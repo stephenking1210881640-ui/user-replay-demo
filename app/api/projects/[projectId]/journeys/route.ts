@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 
 import { prisma } from "@/lib/prisma";
 
@@ -42,5 +43,8 @@ export async function POST(
     },
   });
 
+  revalidatePath("/journeys");
+  revalidatePath(`/journeys/${journeyId}`);
+  revalidatePath(`/projects/${params.projectId}`);
   return NextResponse.json({ ok: true, projectJourney }, { status: 201 });
 }
