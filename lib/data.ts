@@ -45,6 +45,62 @@ function splitCriteria(value?: string | null) {
     .filter(Boolean);
 }
 
+function ensureNarrativeText(value: string | null | undefined, fallback: string, minLength = 12) {
+  const normalized = value?.trim() ?? "";
+  if (normalized.length >= minLength) {
+    return normalized;
+  }
+  return fallback;
+}
+
+function normalizeJourneyNarrative<
+  T extends {
+    title: string;
+    pageTitle: string;
+    pageTemplate: string;
+    businessActionType: string;
+    resultStatus: JourneyResultStatus;
+    hasAnomaly: boolean;
+    aiSummaryShort: string;
+    aiScenarioSummary: string;
+    aiProcessSummary: string;
+    aiGoalAnalysis: string;
+    aiAnomalyAnalysis: string;
+  },
+>(journey: T): T {
+  const statusLabel = journeyStatusLabelMap[journey.resultStatus];
+  const anomalyLabel = journey.hasAnomaly ? "过程中出现了明确异常信号。" : "过程中未出现系统级异常。";
+
+  return {
+    ...journey,
+    aiSummaryShort: ensureNarrativeText(
+      journey.aiSummaryShort,
+      `${journey.title}，页面为 ${journey.pageTitle}，核心业务动作是${journey.businessActionType}，最终状态为${statusLabel}。`,
+      18,
+    ),
+    aiScenarioSummary: ensureNarrativeText(
+      journey.aiScenarioSummary,
+      `用户进入 ${journey.pageTemplate} 页面，核心目标围绕“${journey.businessActionType}”展开，本次旅程适合作为 ${statusLabel} 旅程观察。`,
+      18,
+    ),
+    aiProcessSummary: ensureNarrativeText(
+      journey.aiProcessSummary,
+      `用户在 ${journey.pageTitle} 中完成了关键浏览与操作动作，随后进入结果确认阶段，形成一条可回放的业务链路。`,
+      18,
+    ),
+    aiGoalAnalysis: ensureNarrativeText(
+      journey.aiGoalAnalysis,
+      `本次旅程最终结果为${statusLabel}，可直接结合关键时间线与证据区判断目标是否达成以及阻断点位置。`,
+      18,
+    ),
+    aiAnomalyAnalysis: ensureNarrativeText(
+      journey.aiAnomalyAnalysis,
+      anomalyLabel,
+      18,
+    ),
+  };
+}
+
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -88,6 +144,10 @@ async function findManyWithRetry<T>(task: () => Promise<T>) {
 
 async function countWithRetry(task: () => Promise<number>) {
   return withDbRetry(task);
+}
+
+export function isPrismaRecordNotFound(error: unknown) {
+  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025";
 }
 
 export async function getApplicationOverview() {
@@ -172,37 +232,38 @@ export async function getOverviewData() {
       take: 5,
     }),
   );
+  const normalizedJourneys = journeys.map(normalizeJourneyNarrative);
 
-  const successCount = journeys.filter((journey) => journey.resultStatus === "COMPLETED").length;
-  const anomalyCount = journeys.filter((journey) => journey.hasAnomaly).length;
-  const unfinishedCount = journeys.filter(
+  const successCount = normalizedJourneys.filter((journey) => journey.resultStatus === "COMPLETED").length;
+  const anomalyCount = normalizedJourneys.filter((journey) => journey.hasAnomaly).length;
+  const unfinishedCount = normalizedJourneys.filter(
     (journey) => journey.resultStatus === "ABANDONED" || journey.resultStatus === "BROWSING",
   ).length;
-  const abnormalJourneys = journeys
+  const abnormalJourneys = normalizedJourneys
     .filter((journey) => journey.hasAnomaly || journey.resultStatus !== "COMPLETED")
     .slice(0, 4);
 
-  const checkoutProblemJourneys = journeys.filter(
+  const checkoutProblemJourneys = normalizedJourneys.filter(
     (journey) =>
       journey.pageTemplate === "/checkout" &&
       (journey.hasAnomaly || journey.resultStatus === "ABANDONED"),
   ).length;
-  const longestJourney = [...journeys].sort((a, b) => b.totalDurationMs - a.totalDurationMs)[0];
+  const longestJourney = [...normalizedJourneys].sort((a, b) => b.totalDurationMs - a.totalDurationMs)[0];
 
   const insight =
     checkoutProblemJourneys > 0
-      ? `最近 7 天共有 ${checkoutProblemJourneys} 条结算链路样本出现异常或中途放弃，优先查看“新版结算页可用性验证”项目。`
+      ? `最近 7 天共有 ${checkoutProblemJourneys} 条结算链路旅程出现异常或未完成，优先查看“新版结算页可用性验证”研究项目。`
       : longestJourney
         ? `最近 7 天最长旅程为 ${longestJourney.journeyCode}，建议从长停留节点反查理解成本。`
-        : "最近 7 天暂无足够旅程样本，建议先回看接入状态与采集完整性。";
+        : "最近 7 天暂无足够旅程，建议先回看接入状态与采集完整性。";
 
   return {
     metrics: {
-      last7dJourneyCount: journeys.length,
+      last7dJourneyCount: normalizedJourneys.length,
       successCount,
       anomalyCount,
       unfinishedCount,
-      successRate: journeys.length ? Math.round((successCount / journeys.length) * 100) : 0,
+      successRate: normalizedJourneys.length ? Math.round((successCount / normalizedJourneys.length) * 100) : 0,
     },
     recentAnomalyJourneys: abnormalJourneys,
     recentProjects,
@@ -273,12 +334,18 @@ export async function getUsers(searchParams: SearchParams) {
     }),
   );
 
-  return { users, availableTags };
+  return {
+    users: users.map((user) => ({
+      ...user,
+      journeys: user.journeys.map(normalizeJourneyNarrative),
+    })),
+    availableTags,
+  };
 }
 
 export async function getUserDetail(id: string) {
   const user = await withDbRetry(() =>
-    prisma.user.findUniqueOrThrow({
+    prisma.user.findUnique({
       where: { id },
       include: {
         userTags: {
@@ -296,6 +363,10 @@ export async function getUserDetail(id: string) {
     }),
   );
 
+  if (!user) {
+    return null;
+  }
+
   const availableTags = await findManyWithRetry(() =>
     prisma.tag.findMany({
       where: {
@@ -309,7 +380,13 @@ export async function getUserDetail(id: string) {
     }),
   );
 
-  return { user, availableTags };
+  return {
+    user: {
+      ...user,
+      journeys: user.journeys.map(normalizeJourneyNarrative),
+    },
+    availableTags,
+  };
 }
 
 export async function getJourneys(searchParams: SearchParams) {
@@ -404,12 +481,17 @@ export async function getJourneys(searchParams: SearchParams) {
     }),
   );
 
-  return { journeys, userTags, journeyTags, projects };
+  return {
+    journeys: journeys.map(normalizeJourneyNarrative),
+    userTags,
+    journeyTags,
+    projects,
+  };
 }
 
 export async function getJourneyDetail(id: string) {
   const journey = await withDbRetry(() =>
-    prisma.journey.findUniqueOrThrow({
+    prisma.journey.findUnique({
       where: { id },
       include: {
         user: {
@@ -439,6 +521,10 @@ export async function getJourneyDetail(id: string) {
       },
     }),
   );
+
+  if (!journey) {
+    return null;
+  }
 
   const projects = await findManyWithRetry(() =>
     prisma.project.findMany({
@@ -475,7 +561,7 @@ export async function getJourneyDetail(id: string) {
   );
 
   return {
-    journey,
+    journey: normalizeJourneyNarrative(journey),
     projects,
     availableJourneyTags,
     evidenceGroups: {
@@ -488,7 +574,7 @@ export async function getJourneyDetail(id: string) {
 
 export async function getProjectDetail(id: string) {
   const project = await withDbRetry(() =>
-    prisma.project.findUniqueOrThrow({
+    prisma.project.findUnique({
       where: { id },
       include: {
         projectJourneys: {
@@ -511,6 +597,10 @@ export async function getProjectDetail(id: string) {
     }),
   );
 
+  if (!project) {
+    return null;
+  }
+
   const availableJourneys = await findManyWithRetry(() =>
     prisma.journey.findMany({
       where: {
@@ -531,15 +621,152 @@ export async function getProjectDetail(id: string) {
   );
 
   return {
-    project,
+    project: {
+      ...project,
+      projectJourneys: project.projectJourneys.map((projectJourney) => ({
+        ...projectJourney,
+        journey: normalizeJourneyNarrative(projectJourney.journey),
+      })),
+    },
     criteria: {
       timeRanges: splitCriteria(project.filterTimeRangeLabel),
       pageTemplates: splitCriteria(project.filterPageTemplates),
       statuses: splitCriteria(project.filterStatuses),
       tagRules: splitCriteria(project.filterTagRules),
     },
-    availableJourneys,
+    availableJourneys: availableJourneys.map(normalizeJourneyNarrative),
   };
+}
+
+export async function getJourneyDetailShell(id: string) {
+  const journey = await withDbRetry(() =>
+    prisma.journey.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        journeyCode: true,
+        title: true,
+        startedAt: true,
+        endedAt: true,
+        totalDurationMs: true,
+        effectiveDurationMs: true,
+        resultStatus: true,
+        hasAnomaly: true,
+        pageTemplate: true,
+        pageTitle: true,
+        businessActionType: true,
+        aiSummaryShort: true,
+        aiScenarioSummary: true,
+        aiProcessSummary: true,
+        aiGoalAnalysis: true,
+        aiAnomalyAnalysis: true,
+        user: {
+          select: {
+            id: true,
+            externalId: true,
+            name: true,
+          },
+        },
+        journeyTags: {
+          include: {
+            tag: true,
+          },
+        },
+        events: {
+          orderBy: { seq: "asc" },
+          take: 5,
+          select: {
+            id: true,
+            seq: true,
+            title: true,
+            description: true,
+            offsetMs: true,
+            type: true,
+            isAnomaly: true,
+          },
+        },
+      },
+    }),
+  );
+
+  return journey ? normalizeJourneyNarrative(journey) : null;
+}
+
+export async function getProjectDetailShell(id: string) {
+  return withDbRetry(() =>
+    prisma.project.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        projectCode: true,
+        name: true,
+        goal: true,
+        description: true,
+        focusArea: true,
+        focusTarget: true,
+        focusFeature: true,
+        ownerName: true,
+        createdAt: true,
+        updatedAt: true,
+        _count: {
+          select: {
+            projectJourneys: true,
+          },
+        },
+        findings: {
+          orderBy: { sortOrder: "asc" },
+          take: 2,
+        },
+      },
+    }),
+  );
+}
+
+export async function getUserDetailShell(id: string) {
+  const user = await withDbRetry(() =>
+    prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        applicationId: true,
+        externalId: true,
+        name: true,
+        email: true,
+        deviceType: true,
+        os: true,
+        browser: true,
+        location: true,
+        firstSeenAt: true,
+        lastActiveAt: true,
+        userTags: {
+          include: {
+            tag: true,
+          },
+        },
+        journeys: {
+          orderBy: { startedAt: "desc" },
+          take: 1,
+          include: {
+            journeyTags: {
+              include: { tag: true },
+            },
+          },
+        },
+        _count: {
+          select: {
+            journeys: true,
+          },
+        },
+      },
+    }),
+  );
+
+  return user
+    ? {
+        ...user,
+        journeys: user.journeys.map(normalizeJourneyNarrative),
+      }
+    : null;
 }
 
 export async function getProjectList() {
@@ -584,8 +811,8 @@ export async function getTagManagementData() {
 
 export const journeyStatusLabelMap: Record<JourneyResultStatus, string> = {
   COMPLETED: "已完成",
-  ABANDONED: "中途放弃",
-  FAILED: "异常失败",
+  ABANDONED: "未完成",
+  FAILED: "异常",
   BROWSING: "仅浏览退出",
 };
 

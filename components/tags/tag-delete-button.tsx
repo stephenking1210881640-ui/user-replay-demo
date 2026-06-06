@@ -5,7 +5,15 @@ import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 
-export function TagDeleteButton({ tagId, tagName }: { tagId: string; tagName: string }) {
+export function TagDeleteButton({
+  tagId,
+  tagName,
+  tenantSlug,
+}: {
+  tagId: string;
+  tagName: string;
+  tenantSlug?: string;
+}) {
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
 
@@ -18,6 +26,8 @@ export function TagDeleteButton({ tagId, tagName }: { tagId: string; tagName: st
     try {
       const response = await fetch(`/api/tags/${tagId}`, {
         method: "DELETE",
+        headers: tenantSlug ? { "Content-Type": "application/json" } : undefined,
+        body: tenantSlug ? JSON.stringify({ tenantSlug }) : undefined,
       });
       if (!response.ok) {
         const payload = await response.json();

@@ -17,6 +17,7 @@ import {
 type AssignTagDialogProps = {
   entityId: string;
   entityType: "users" | "journeys";
+  tenantSlug?: string;
   title: string;
   description: string;
   triggerLabel?: string;
@@ -31,6 +32,7 @@ type AssignTagDialogProps = {
 export function AssignTagDialog({
   entityId,
   entityType,
+  tenantSlug,
   title,
   description,
   triggerLabel = "添加标签",
@@ -62,7 +64,7 @@ export function AssignTagDialog({
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ tagId: selectedTagId }),
+        body: JSON.stringify({ tagId: selectedTagId, tenantSlug }),
       });
       const payload = await response.json();
 

@@ -6,10 +6,25 @@ import { prisma } from "@/lib/prisma";
 
 export async function POST(request: Request) {
   const body = await request.json();
-  const application = await prisma.application.findFirst();
+  const tenant = body?.tenantSlug
+    ? await prisma.tenant.findUnique({
+        where: { slug: body.tenantSlug },
+        include: {
+          applications: {
+            orderBy: { createdAt: "asc" },
+          },
+        },
+      })
+    : await prisma.tenant.findFirst({
+        include: {
+          applications: {
+            orderBy: { createdAt: "asc" },
+          },
+        },
+      });
 
-  if (!application) {
-    return NextResponse.json({ error: "未找到应用空间。" }, { status: 400 });
+  if (!tenant || tenant.applications.length === 0) {
+    return NextResponse.json({ error: "未找到可用租户或应用空间。" }, { status: 400 });
   }
 
   if (!body?.name || !body?.type) {
@@ -21,9 +36,12 @@ export async function POST(request: Request) {
   }
 
   const source = Object.values(TagSource).includes(body.source) ? body.source : TagSource.MANUAL;
+  const application =
+    tenant.applications.find((item) => item.id === body.applicationId) ?? tenant.applications[0];
 
   const tag = await prisma.tag.create({
     data: {
+      tenantId: tenant.id,
       applicationId: application.id,
       name: body.name.trim(),
       type: body.type,
@@ -36,6 +54,9 @@ export async function POST(request: Request) {
   revalidatePath("/tags");
   revalidatePath("/users");
   revalidatePath("/journeys");
+  revalidatePath(`/tenants/${tenant.slug}/tags`);
+  revalidatePath(`/tenants/${tenant.slug}/users`);
+  revalidatePath(`/tenants/${tenant.slug}/journeys`);
 
   return NextResponse.json({ tag }, { status: 201 });
 }

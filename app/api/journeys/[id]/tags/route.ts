@@ -24,6 +24,10 @@ export async function POST(
     return NextResponse.json({ error: "旅程或标签不存在。" }, { status: 404 });
   }
 
+  if (journey.tenantId !== tag.tenantId) {
+    return NextResponse.json({ error: "不能跨租户添加标签。" }, { status: 400 });
+  }
+
   if (tag.type !== TagType.JOURNEY) {
     return NextResponse.json({ error: "该标签不是旅程标签。" }, { status: 400 });
   }
@@ -49,6 +53,15 @@ export async function POST(
   revalidatePath("/journeys");
   revalidatePath(`/journeys/${params.id}`);
   revalidatePath("/tags");
+  const tenant = await prisma.tenant.findUnique({
+    where: { id: journey.tenantId },
+    select: { slug: true },
+  });
+  if (tenant) {
+    revalidatePath(`/tenants/${tenant.slug}/journeys`);
+    revalidatePath(`/tenants/${tenant.slug}/journeys/${params.id}`);
+    revalidatePath(`/tenants/${tenant.slug}/tags`);
+  }
 
   return NextResponse.json({ ok: true });
 }

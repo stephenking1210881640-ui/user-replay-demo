@@ -56,8 +56,15 @@ if (!databaseUrl) {
   process.exit(1);
 }
 
+const shouldForceReset = process.argv.includes("--force-reset") || process.env.DB_FORCE_RESET === "1";
+
 if (!databaseUrl.startsWith("file:")) {
-  const result = spawnSync("npx", ["prisma", "db", "push"], {
+  const args = ["prisma", "db", "push"];
+  if (shouldForceReset) {
+    args.push("--force-reset");
+  }
+
+  const result = spawnSync("npx", args, {
     stdio: "inherit",
     shell: process.platform === "win32",
   });

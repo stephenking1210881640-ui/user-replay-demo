@@ -2,8 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import {
+  ArrowLeftRight,
   Bell,
+  Building2,
   FolderKanban,
   LayoutGrid,
   Search,
@@ -14,18 +17,72 @@ import {
 
 import { cn } from "@/lib/utils";
 
-const navItems = [
-  { href: "/overview", label: "平台概览", icon: LayoutGrid },
-  { href: "/integration", label: "应用接入", icon: LayoutGrid },
-  { href: "/users", label: "用户管理", icon: Users },
-  { href: "/tags", label: "标签管理", icon: Tags },
-  { href: "/projects", label: "研究项目", icon: FolderKanban },
-  { href: "/journeys", label: "用户旅程", icon: Search },
-  { href: "/settings", label: "设置中心", icon: Settings, disabled: true },
-];
+type TenantContext = {
+  slug: string;
+  status: "ACTIVE" | "TRIAL" | "RISK";
+  plan: "STARTER" | "GROWTH" | "ENTERPRISE";
+};
+
+const tenantStatusLabelMap: Record<TenantContext["status"], string> = {
+  ACTIVE: "正常",
+  TRIAL: "试用",
+  RISK: "风险",
+};
+
+const tenantPlanLabelMap: Record<TenantContext["plan"], string> = {
+  STARTER: "Starter",
+  GROWTH: "Growth",
+  ENTERPRISE: "Enterprise",
+};
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const tenantSlug = pathname.startsWith("/tenants/") ? pathname.split("/")[2] ?? "" : "";
+  const tenantPrefix = tenantSlug ? `/tenants/${tenantSlug}` : "";
+  const [tenantContext, setTenantContext] = useState<TenantContext | null>(null);
+
+  useEffect(() => {
+    if (!tenantSlug) {
+      setTenantContext(null);
+      return;
+    }
+
+    let ignored = false;
+
+    fetch(`/api/tenants/${tenantSlug}/context`)
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data) => {
+        if (!ignored) {
+          setTenantContext(data?.tenant ?? null);
+        }
+      })
+      .catch(() => {
+        if (!ignored) {
+          setTenantContext(null);
+        }
+      });
+
+    return () => {
+      ignored = true;
+    };
+  }, [tenantSlug]);
+
+  const navItems = tenantSlug
+    ? [
+        { href: "/tenants", label: "企业租户", icon: Building2 },
+        { href: `${tenantPrefix}/overview`, label: "租户概览", icon: LayoutGrid },
+        { href: `${tenantPrefix}/applications`, label: "应用列表", icon: LayoutGrid },
+        { href: `${tenantPrefix}/integration`, label: "接入配置", icon: LayoutGrid },
+        { href: `${tenantPrefix}/users`, label: "用户管理", icon: Users },
+        { href: `${tenantPrefix}/tags`, label: "标签管理", icon: Tags },
+        { href: `${tenantPrefix}/projects`, label: "研究项目", icon: FolderKanban },
+        { href: `${tenantPrefix}/journeys`, label: "用户旅程", icon: Search },
+        { href: "/settings", label: "设置中心", icon: Settings, disabled: true },
+      ]
+    : [
+        { href: "/tenants", label: "企业租户", icon: Building2 },
+        { href: "/settings", label: "设置中心", icon: Settings, disabled: true },
+      ];
 
   return (
     <div className="flex min-h-screen bg-[var(--bg-main)] text-slate-900">
@@ -40,14 +97,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
         <nav className="flex flex-1 flex-col gap-1 px-3 py-4">
           {navItems.map(({ href, label, icon: Icon, disabled }) => {
-            const active =
-              pathname === href ||
-              (href.startsWith("/overview") && pathname.startsWith("/overview")) ||
-              (href.startsWith("/integration") && pathname.startsWith("/integration")) ||
-              (href.startsWith("/projects") && pathname.startsWith("/projects")) ||
-              (href.startsWith("/journeys") && pathname.startsWith("/journeys")) ||
-              (href.startsWith("/users") && pathname.startsWith("/users")) ||
-              (href.startsWith("/tags") && pathname.startsWith("/tags"));
+            const active = pathname === href || (href !== "/tenants" && pathname.startsWith(href));
 
             return (
               <Link
@@ -67,12 +117,52 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             );
           })}
         </nav>
+
+        <div className="border-t border-white/5 px-3 py-4">
+          {tenantSlug ? (
+            <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+              <div className="text-xs text-slate-500">当前租户状态</div>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <span
+                  className={cn(
+                    "inline-flex items-center rounded-full px-2 py-1 text-xs font-medium",
+                    tenantContext?.status === "RISK"
+                      ? "bg-amber-400/10 text-amber-200"
+                      : tenantContext?.status === "TRIAL"
+                        ? "bg-sky-400/10 text-sky-200"
+                        : "bg-emerald-400/10 text-emerald-200",
+                  )}
+                >
+                  {tenantContext ? tenantStatusLabelMap[tenantContext.status] : "加载中"}
+                </span>
+                <span className="rounded-full bg-white/5 px-2 py-1 text-xs text-slate-300">
+                  {tenantContext ? tenantPlanLabelMap[tenantContext.plan] : "套餐"}
+                </span>
+              </div>
+              <Link
+                href="/tenants"
+                className="mt-3 flex h-9 items-center justify-center gap-2 rounded-md border border-white/10 text-sm font-medium text-slate-200 transition hover:bg-white/10 hover:text-white"
+              >
+                <ArrowLeftRight className="h-4 w-4" />
+                切换租户
+              </Link>
+            </div>
+          ) : (
+            <Link
+              href="/tenants"
+              className="flex h-10 items-center justify-center gap-2 rounded-md border border-white/10 text-sm font-medium text-slate-200 transition hover:bg-white/10 hover:text-white"
+            >
+              <Building2 className="h-4 w-4" />
+              进入企业租户
+            </Link>
+          )}
+        </div>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-[var(--border-light)] bg-white px-6">
           <div className="rounded-lg border border-[var(--border-light)] bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700">
-            B 端商家后台空间
+            {tenantSlug ? "租户工作台" : "平台空间 / 多租户管理"}
           </div>
 
           <div className="flex items-center gap-4">

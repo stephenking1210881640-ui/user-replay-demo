@@ -22,12 +22,14 @@ type ProjectOption = {
 
 export function AddToProjectDialog({
   journeyId,
+  tenantSlug,
   projects,
   currentProjectIds = [],
   triggerLabel = "加入研究项目",
   compact = false,
 }: {
   journeyId: string;
+  tenantSlug?: string;
   projects: ProjectOption[];
   currentProjectIds?: string[];
   triggerLabel?: string;
@@ -60,7 +62,7 @@ export function AddToProjectDialog({
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ journeyId }),
+        body: JSON.stringify({ journeyId, tenantSlug }),
       });
 
       const payload = await response.json();
@@ -100,7 +102,7 @@ export function AddToProjectDialog({
           <DialogHeader className="px-5 pt-5">
             <DialogTitle>加入研究项目</DialogTitle>
             <DialogDescription>
-              选择一个研究项目，将当前旅程归档为后续分析样本。
+              选择一个研究项目，将当前旅程纳入后续分析。
             </DialogDescription>
           </DialogHeader>
 
@@ -111,7 +113,7 @@ export function AddToProjectDialog({
               </div>
             ) : (
               <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700">目标项目</label>
+                <label className="text-sm font-medium text-slate-700">目标研究项目</label>
                 <select
                   value={selectedProjectId}
                   onChange={(event) => setSelectedProjectId(event.target.value)}
@@ -154,4 +156,3 @@ export function AddToProjectDialog({
     </>
   );
 }
-

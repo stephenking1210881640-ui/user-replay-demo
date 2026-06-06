@@ -13,6 +13,18 @@ enum ApplicationStatus {
   PENDING
 }
 
+enum TenantPlan {
+  STARTER
+  GROWTH
+  ENTERPRISE
+}
+
+enum TenantStatus {
+  ACTIVE
+  TRIAL
+  RISK
+}
+
 enum TagType {
   USER
   JOURNEY
@@ -62,25 +74,52 @@ enum FindingCategory {
   TECHNICAL
 }
 
+model Tenant {
+  id           String          @id @default(cuid())
+  name         String
+  slug         String          @unique
+  industry     String
+  plan         TenantPlan
+  status       TenantStatus
+  logoUrl      String?
+  description  String?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  applications Application[]
+  users        User[]
+  journeys     Journey[]
+  tags         Tag[]
+  projects     Project[]
+  integrationLogs IntegrationLog[]
+
+  @@index([status, createdAt])
+}
+
 model Application {
   id              String            @id @default(cuid())
+  tenantId        String
   name            String
-  appKey          String            @unique
+  appKey          String
   host            String
   description     String
   status          ApplicationStatus @default(CONNECTED)
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
   lastReportedAt  DateTime?
+  tenant          Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   users           User[]
   tags            Tag[]
   journeys        Journey[]
   projects        Project[]
   integrationLogs IntegrationLog[]
+
+  @@unique([tenantId, appKey])
+  @@index([tenantId, createdAt])
 }
 
 model User {
   id            String      @id @default(cuid())
+  tenantId      String
   applicationId String
   externalId    String
   name          String
@@ -92,16 +131,19 @@ model User {
   location      String?
   firstSeenAt   DateTime
   lastActiveAt  DateTime
+  tenant        Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
   userTags      UserTag[]
   journeys      Journey[]
 
-  @@unique([applicationId, externalId])
+  @@unique([tenantId, externalId])
+  @@index([tenantId, lastActiveAt])
   @@index([applicationId, lastActiveAt])
 }
 
 model Tag {
   id            String       @id @default(cuid())
+  tenantId      String
   applicationId String
   name          String
   type          TagType
@@ -110,11 +152,13 @@ model Tag {
   description   String?
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @default(now()) @updatedAt
+  tenant        Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   application   Application  @relation(fields: [applicationId], references: [id], onDelete: Cascade)
   userTags      UserTag[]
   journeyTags   JourneyTag[]
 
-  @@unique([applicationId, type, name])
+  @@unique([tenantId, type, name])
+  @@index([tenantId, type])
   @@index([applicationId, type])
 }
 
@@ -131,6 +175,7 @@ model UserTag {
 
 model Journey {
   id                  String              @id @default(cuid())
+  tenantId            String
   applicationId       String
   userId              String
   journeyCode         String              @unique
@@ -154,6 +199,7 @@ model Journey {
   aiGoalAnalysis      String
   aiAnomalyAnalysis   String
   createdAt           DateTime            @default(now())
+  tenant              Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   application         Application         @relation(fields: [applicationId], references: [id], onDelete: Cascade)
   user                User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   journeyTags         JourneyTag[]
@@ -161,6 +207,7 @@ model Journey {
   events              JourneyEvent[]
   evidences           Evidence[]
 
+  @@index([tenantId, startedAt])
   @@index([applicationId, startedAt])
   @@index([userId, startedAt])
   @@index([pageTemplate])
@@ -180,6 +227,7 @@ model JourneyTag {
 
 model Project {
   id                   String           @id @default(cuid())
+  tenantId             String
   applicationId        String
   projectCode          String?          @unique
   name                 String
@@ -195,10 +243,12 @@ model Project {
   filterTagRules       String?
   createdAt            DateTime         @default(now())
   updatedAt            DateTime         @updatedAt
+  tenant               Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   application          Application      @relation(fields: [applicationId], references: [id], onDelete: Cascade)
   projectJourneys      ProjectJourney[]
   findings             ProjectFinding[]
 
+  @@index([tenantId, createdAt])
   @@index([applicationId, createdAt])
 }
 
@@ -267,6 +317,7 @@ model Evidence {
 
 model IntegrationLog {
   id             String      @id @default(cuid())
+  tenantId       String
   applicationId  String
   level          String
   status         String
@@ -274,8 +325,10 @@ model IntegrationLog {
   message        String
   payloadSummary String?
   createdAt      DateTime    @default(now())
+  tenant         Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   application    Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
 
+  @@index([tenantId, createdAt])
   @@index([applicationId, createdAt])
 }
 

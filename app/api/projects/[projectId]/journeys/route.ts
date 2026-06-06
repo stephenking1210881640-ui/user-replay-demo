@@ -23,6 +23,10 @@ export async function POST(
     return NextResponse.json({ error: "项目或旅程不存在。" }, { status: 404 });
   }
 
+  if (project.tenantId !== journey.tenantId) {
+    return NextResponse.json({ error: "不能跨租户归档旅程。" }, { status: 400 });
+  }
+
   const existing = await prisma.projectJourney.findUnique({
     where: {
       projectId_journeyId: {
@@ -46,5 +50,14 @@ export async function POST(
   revalidatePath("/journeys");
   revalidatePath(`/journeys/${journeyId}`);
   revalidatePath(`/projects/${params.projectId}`);
+  const tenant = await prisma.tenant.findUnique({
+    where: { id: project.tenantId },
+    select: { slug: true },
+  });
+  if (tenant) {
+    revalidatePath(`/tenants/${tenant.slug}/journeys`);
+    revalidatePath(`/tenants/${tenant.slug}/journeys/${journeyId}`);
+    revalidatePath(`/tenants/${tenant.slug}/projects/${params.projectId}`);
+  }
   return NextResponse.json({ ok: true, projectJourney }, { status: 201 });
 }

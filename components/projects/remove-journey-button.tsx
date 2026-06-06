@@ -8,15 +8,17 @@ import { Button } from "@/components/ui/button";
 export function RemoveJourneyButton({
   projectId,
   journeyId,
+  tenantSlug,
 }: {
   projectId: string;
   journeyId: string;
+  tenantSlug?: string;
 }) {
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
 
   async function handleRemove() {
-    if (!window.confirm("确认将该旅程移出当前研究项目吗？")) {
+    if (!window.confirm("确认将该旅程从当前研究项目中移除吗？")) {
       return;
     }
 
@@ -24,6 +26,8 @@ export function RemoveJourneyButton({
     try {
       const response = await fetch(`/api/projects/${projectId}/journeys/${journeyId}`, {
         method: "DELETE",
+        headers: tenantSlug ? { "Content-Type": "application/json" } : undefined,
+        body: tenantSlug ? JSON.stringify({ tenantSlug }) : undefined,
       });
 
       if (!response.ok) {
@@ -41,7 +45,7 @@ export function RemoveJourneyButton({
 
   return (
     <Button variant="destructive" onClick={handleRemove} disabled={submitting}>
-      {submitting ? "移除中..." : "移出项目"}
+      {submitting ? "移除中..." : "移出研究项目"}
     </Button>
   );
 }

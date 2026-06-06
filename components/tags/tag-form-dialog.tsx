@@ -17,6 +17,7 @@ import {
 
 type TagFormDialogProps = {
   mode: "create" | "edit";
+  tenantSlug?: string;
   initialTag?: {
     id: string;
     name: string;
@@ -27,7 +28,7 @@ type TagFormDialogProps = {
   };
 };
 
-export function TagFormDialog({ mode, initialTag }: TagFormDialogProps) {
+export function TagFormDialog({ mode, tenantSlug, initialTag }: TagFormDialogProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(initialTag?.name ?? "");
@@ -68,6 +69,7 @@ export function TagFormDialog({ mode, initialTag }: TagFormDialogProps) {
           source,
           color,
           description,
+          tenantSlug,
         }),
       });
       const payload = await response.json();
@@ -105,7 +107,7 @@ export function TagFormDialog({ mode, initialTag }: TagFormDialogProps) {
           <DialogHeader className="px-5 pt-5">
             <DialogTitle>{mode === "create" ? "新增标签" : "编辑标签"}</DialogTitle>
             <DialogDescription>
-              统一维护用户标签与旅程标签，避免演示数据出现重复语义。
+              统一维护用户标签与旅程标签，避免标签语义重复。
             </DialogDescription>
           </DialogHeader>
 

@@ -35,14 +35,31 @@ export async function PATCH(
   revalidatePath("/tags");
   revalidatePath("/users");
   revalidatePath("/journeys");
+  if (existing.tenantId) {
+    const tenant = await prisma.tenant.findUnique({
+      where: { id: existing.tenantId },
+      select: { slug: true },
+    });
+    if (tenant) {
+      revalidatePath(`/tenants/${tenant.slug}/tags`);
+      revalidatePath(`/tenants/${tenant.slug}/users`);
+      revalidatePath(`/tenants/${tenant.slug}/journeys`);
+    }
+  }
 
   return NextResponse.json({ tag });
 }
 
 export async function DELETE(
-  _request: Request,
+  request: Request,
   { params }: { params: { id: string } },
 ) {
+  try {
+    await request.json();
+  } catch {
+    // ignore empty body
+  }
+
   const existing = await prisma.tag.findUnique({
     where: { id: params.id },
   });
@@ -58,6 +75,17 @@ export async function DELETE(
   revalidatePath("/tags");
   revalidatePath("/users");
   revalidatePath("/journeys");
+  if (existing.tenantId) {
+    const tenant = await prisma.tenant.findUnique({
+      where: { id: existing.tenantId },
+      select: { slug: true },
+    });
+    if (tenant) {
+      revalidatePath(`/tenants/${tenant.slug}/tags`);
+      revalidatePath(`/tenants/${tenant.slug}/users`);
+      revalidatePath(`/tenants/${tenant.slug}/journeys`);
+    }
+  }
 
   return NextResponse.json({ ok: true });
 }

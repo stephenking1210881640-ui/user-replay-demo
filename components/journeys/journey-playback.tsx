@@ -61,6 +61,7 @@ type SerializedEvidence = {
 };
 
 type JourneyPlaybackProps = {
+  tenantSlug?: string;
   journey: {
     id: string;
     journeyCode: string;
@@ -128,6 +129,7 @@ function toneForSeverity(severity: string) {
 }
 
 export function JourneyPlayback({
+  tenantSlug,
   journey,
   events,
   evidences,
@@ -356,14 +358,14 @@ export function JourneyPlayback({
           </SectionCard>
 
           <SectionCard
-            title="AI 总结卡"
+            title="AI 总结"
             description="固定结构输出，便于快速建立对这条旅程的统一理解。"
             className="border-[var(--border-light)] shadow-[var(--card-shadow)]"
           >
             <div className="space-y-3">
               <div className="rounded-2xl border border-violet-200 bg-[var(--ai-purple-light)] p-4">
                 <div className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--ai-purple)]">
-                  AI 一句话摘要
+                  一句话总结
                 </div>
                 <p className="mt-2 text-sm leading-7 text-slate-800">{journey.aiSummaryShort}</p>
               </div>
@@ -520,7 +522,7 @@ export function JourneyPlayback({
             </div>
           </SectionCard>
 
-          <SectionCard title="标签与项目归档区" description="把当前旅程沉淀为可追踪、可复用的研究样本。">
+          <SectionCard title="标签与研究项目" description="把当前旅程沉淀为可追踪、可复用的研究项目素材。">
             <div className="space-y-4">
               <div>
                 <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-900">
@@ -536,6 +538,7 @@ export function JourneyPlayback({
                   <AssignTagDialog
                     entityId={journey.id}
                     entityType="journeys"
+                    tenantSlug={tenantSlug}
                     title="为旅程添加标签"
                     description="将当前旅程归为统一标签语义，便于后续检索与研究。"
                     tags={availableJourneyTags}
@@ -572,6 +575,7 @@ export function JourneyPlayback({
                 <div className="mt-3">
                   <AddToProjectDialog
                     journeyId={journey.id}
+                    tenantSlug={tenantSlug}
                     projects={projects}
                     currentProjectIds={journey.projectJourneys.map(({ project }) => project.id)}
                   />
@@ -581,9 +585,9 @@ export function JourneyPlayback({
               <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
                 <div className="mb-2 flex items-center gap-2 font-semibold">
                   <MousePointerClick className="h-4 w-4" />
-                  研究归档建议
+                  研究项目建议
                 </div>
-                当前旅程具备明确目标、清晰转折点和可回溯证据，适合作为研究项目中的典型样本持续追踪。
+                当前旅程具备明确目标、清晰转折点和可回溯证据，适合加入研究项目持续追踪。
               </div>
             </div>
           </SectionCard>
