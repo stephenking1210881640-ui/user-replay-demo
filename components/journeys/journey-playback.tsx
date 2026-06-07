@@ -33,10 +33,20 @@ type SerializedEvent = {
   pageTitle: string | null;
   region: string | null;
   regionSource: string | null;
+  regionConfidence: number | null;
   uiAction: string | null;
+  actionType: string | null;
   businessAction: string | null;
   businessIntent: string | null;
   targetLabel: string | null;
+  targetSelector: string | null;
+  targetRole: string | null;
+  targetText: string | null;
+  targetTagName: string | null;
+  targetTestId: string | null;
+  aiRegionStatus: string | null;
+  requestId: string | null;
+  requestUrl: string | null;
   requestHost: string | null;
   method: string | null;
   pathTemplate: string | null;
@@ -169,10 +179,25 @@ export function JourneyPlayback({
   const contextRows = [
     { label: "page", value: selectedEvent?.pageUrl ?? journey.pageUrl },
     { label: "template", value: selectedEvent?.pageTemplate ?? journey.pageTemplate },
-    { label: "region", value: selectedEvent?.region ?? "未识别" },
+    {
+      label: "region",
+      value: selectedEvent?.region
+        ? `${selectedEvent.region}${selectedEvent.regionSource ? ` · ${selectedEvent.regionSource}` : ""}`
+        : selectedEvent?.aiRegionStatus === "PENDING"
+          ? "待 AI 解构"
+          : "未识别",
+    },
     { label: "action", value: selectedEvent?.uiAction ?? selectedEvent?.businessAction ?? "无" },
-    { label: "request", value: selectedEvent?.pathTemplate ?? "无" },
-    { label: "result", value: selectedEvent?.requestOutcome ?? selectedEvent?.uiFeedback ?? "无" },
+    { label: "target", value: selectedEvent?.targetLabel ?? selectedEvent?.targetText ?? "无" },
+    { label: "selector", value: selectedEvent?.targetSelector ?? "无" },
+    { label: "request", value: selectedEvent?.requestUrl ?? selectedEvent?.pathTemplate ?? "无" },
+    {
+      label: "result",
+      value:
+        selectedEvent?.requestOutcome ??
+        selectedEvent?.uiFeedback ??
+        (selectedEvent?.statusCode ? `HTTP ${selectedEvent.statusCode}` : "无"),
+    },
   ];
 
   return (

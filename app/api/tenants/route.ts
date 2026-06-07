@@ -1,6 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
-import { TenantPlan, TenantStatus } from "@prisma/client";
+import { randomUUID } from "node:crypto";
+import { ApplicationStatus, TenantPlan, TenantStatus } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 
@@ -36,6 +37,8 @@ export async function POST(request: Request) {
           appKey: `${body.slug.trim().replace(/[^a-z0-9-]/gi, "_")}_primary_app`,
           host: `${body.slug.trim()}.demo.local`,
           description: "新创建租户自动初始化的默认应用空间。",
+          status: ApplicationStatus.PENDING,
+          ingestToken: `igr_${randomUUID().replace(/-/g, "")}`,
         },
       },
     },

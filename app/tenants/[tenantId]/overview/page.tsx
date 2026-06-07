@@ -68,7 +68,7 @@ export default async function TenantOverviewPage({ params }: { params: { tenantI
       />
 
       <div className="grid gap-4 lg:grid-cols-5">
-        <KpiCard label="最近 7 天旅程数" value={overview.metrics.last7dJourneyCount} subtext={`${overview.metrics.applicationCount} 个应用产生旅程`} />
+        <KpiCard label="最近 7 天旅程数" value={overview.metrics.last7dJourneyCount} subtext={`真实 ${overview.metrics.realJourneyCount} / Demo fallback ${overview.metrics.demoJourneyCount}`} />
         <KpiCard label="已完成旅程数" value={overview.metrics.successCount} subtext={`完成率 ${overview.metrics.successRate}%`} />
         <KpiCard label="异常旅程数" value={`${overview.metrics.anomalyCount} / ${anomalyRate}%`} subtext="异常数 / 异常占比" accent={<AlertTriangle className="h-4 w-4 text-rose-500" />} />
         <KpiCard label="活跃用户数" value={overview.metrics.activeUserCount} subtext="近 7 天有行为的用户" />

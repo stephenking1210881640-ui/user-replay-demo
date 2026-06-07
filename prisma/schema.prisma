@@ -8,9 +8,11 @@ datasource db {
 }
 
 enum ApplicationStatus {
+  ACTIVE
+  INACTIVE
+  PENDING
   CONNECTED
   DEGRADED
-  PENDING
 }
 
 enum TenantPlan {
@@ -41,6 +43,11 @@ enum JourneyResultStatus {
   ABANDONED
   FAILED
   BROWSING
+}
+
+enum JourneySource {
+  DEMO
+  REAL
 }
 
 enum JourneyEventType {
@@ -75,22 +82,24 @@ enum FindingCategory {
 }
 
 model Tenant {
-  id           String          @id @default(cuid())
-  name         String
-  slug         String          @unique
-  industry     String
-  plan         TenantPlan
-  status       TenantStatus
-  logoUrl      String?
-  description  String?
-  createdAt    DateTime        @default(now())
-  updatedAt    DateTime        @updatedAt
-  applications Application[]
-  users        User[]
-  journeys     Journey[]
-  tags         Tag[]
-  projects     Project[]
+  id              String           @id @default(cuid())
+  name            String
+  slug            String           @unique
+  industry        String
+  plan            TenantPlan
+  status          TenantStatus
+  logoUrl         String?
+  description     String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  applications    Application[]
+  users           User[]
+  journeys        Journey[]
+  tags            Tag[]
+  projects        Project[]
   integrationLogs IntegrationLog[]
+  browserEvents   BrowserEvent[]
+  replaySegments  ReplaySegment[]
 
   @@index([status, createdAt])
 }
@@ -102,7 +111,8 @@ model Application {
   appKey          String
   host            String
   description     String
-  status          ApplicationStatus @default(CONNECTED)
+  status          ApplicationStatus @default(PENDING)
+  ingestToken     String?
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
   lastReportedAt  DateTime?
@@ -112,6 +122,8 @@ model Application {
   journeys        Journey[]
   projects        Project[]
   integrationLogs IntegrationLog[]
+  browserEvents   BrowserEvent[]
+  replaySegments  ReplaySegment[]
 
   @@unique([tenantId, appKey])
   @@index([tenantId, createdAt])
@@ -198,6 +210,11 @@ model Journey {
   aiProcessSummary    String
   aiGoalAnalysis      String
   aiAnomalyAnalysis   String
+  source              JourneySource       @default(DEMO)
+  sessionId           String?
+  anonymousId         String?
+  externalUserId      String?
+  aggregationVersion  String?
   createdAt           DateTime            @default(now())
   tenant              Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   application         Application         @relation(fields: [applicationId], references: [id], onDelete: Cascade)
@@ -206,10 +223,14 @@ model Journey {
   projectJourneys     ProjectJourney[]
   events              JourneyEvent[]
   evidences           Evidence[]
+  browserEvents       BrowserEvent[]
+  replaySegments      ReplaySegment[]
 
   @@index([tenantId, startedAt])
   @@index([applicationId, startedAt])
   @@index([userId, startedAt])
+  @@index([applicationId, sessionId, startedAt])
+  @@index([source, startedAt])
   @@index([pageTemplate])
   @@index([resultStatus, hasAnomaly])
 }
@@ -264,37 +285,64 @@ model ProjectJourney {
 }
 
 model JourneyEvent {
-  id             String           @id @default(cuid())
-  journeyId      String
-  seq            Int
-  occurredAt     DateTime
-  offsetMs       Int
-  type           JourneyEventType
-  title          String
-  description    String
-  pageUrl        String?
-  pageTemplate   String?
-  pageTitle      String?
-  region         String?
-  regionSource   String?
-  uiAction       String?
-  businessAction String?
-  businessIntent String?
-  targetLabel    String?
-  requestHost    String?
-  method         String?
-  pathTemplate   String?
-  statusCode     Int?
-  durationMs     Int?
-  requestOutcome String?
-  uiFeedback     String?
-  isKeyEvent     Boolean          @default(true)
-  isAnomaly      Boolean          @default(false)
-  journey        Journey          @relation(fields: [journeyId], references: [id], onDelete: Cascade)
-  evidences      Evidence[]
+  id                   String           @id @default(cuid())
+  journeyId            String
+  sourceBrowserEventId String?
+  seq                  Int
+  occurredAt           DateTime
+  offsetMs             Int
+  type                 JourneyEventType
+  title                String
+  description          String
+  pageUrl              String?
+  pageTemplate         String?
+  pageTitle            String?
+  region               String?
+  regionSource         String?
+  regionConfidence     Float?
+  uiAction             String?
+  actionType           String?
+  businessAction       String?
+  businessIntent       String?
+  targetLabel          String?
+  targetSelector       String?
+  targetRole           String?
+  targetText           String?
+  targetTagName        String?
+  targetTestId         String?
+  targetData           Json?
+  targetRect           Json?
+  viewport             Json?
+  scroll               Json?
+  interaction          Json?
+  semanticPayload      Json?
+  aiRegionStatus       String?
+  aiRegionSuggestion   Json?
+  aiRegionReason       String?
+  replaySegmentId      String?
+  replayOffsetMs       Int?
+  requestId            String?
+  requestUrl           String?
+  requestHost          String?
+  method               String?
+  pathTemplate         String?
+  statusCode           Int?
+  durationMs           Int?
+  requestOutcome       String?
+  uiFeedback           String?
+  isKeyEvent           Boolean          @default(true)
+  isAnomaly            Boolean          @default(false)
+  journey              Journey          @relation(fields: [journeyId], references: [id], onDelete: Cascade)
+  evidences            Evidence[]
 
   @@unique([journeyId, seq])
   @@index([journeyId, occurredAt])
+  @@index([sourceBrowserEventId])
+  @@index([region])
+  @@index([uiAction])
+  @@index([businessAction])
+  @@index([aiRegionStatus])
+  @@index([replaySegmentId])
 }
 
 model Evidence {
@@ -330,6 +378,101 @@ model IntegrationLog {
 
   @@index([tenantId, createdAt])
   @@index([applicationId, createdAt])
+}
+
+model BrowserEvent {
+  id                String      @id @default(cuid())
+  tenantId          String
+  applicationId     String
+  appKey            String
+  eventId           String
+  sessionId         String
+  userId            String?
+  anonymousId       String?
+  eventType         String
+  timestamp         DateTime
+  pageUrl           String?
+  pageHost          String?
+  pagePath          String?
+  pageTemplate      String?
+  pageTitle         String?
+  referrer          String?
+  region            String?
+  regionSource      String?
+  regionConfidence  Float?
+  action            String?
+  actionType        String?
+  businessAction    String?
+  businessIntent    String?
+  targetLabel       String?
+  targetSelector    String?
+  targetRole        String?
+  targetText        String?
+  targetTagName     String?
+  targetTestId      String?
+  targetData        Json?
+  targetRect        Json?
+  viewport          Json?
+  scroll            Json?
+  interaction       Json?
+  semanticPayload   Json?
+  aiRegionStatus    String?
+  aiRegionCandidate Json?
+  aiRegionReason    String?
+  requestUrl        String?
+  requestHost       String?
+  requestMethod     String?
+  requestStatus     Int?
+  requestDuration   Int?
+  requestId         String?
+  context           Json?
+  rawPayload        Json
+  journeyId         String?
+  aggregatedAt      DateTime?
+  receivedAt        DateTime    @default(now())
+  tenant            Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  application       Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  journey           Journey?    @relation(fields: [journeyId], references: [id], onDelete: SetNull)
+
+  @@unique([applicationId, eventId])
+  @@index([tenantId, receivedAt])
+  @@index([applicationId, receivedAt])
+  @@index([tenantId, aggregatedAt])
+  @@index([journeyId])
+  @@index([sessionId, timestamp])
+  @@index([eventType, timestamp])
+  @@index([region])
+  @@index([action])
+  @@index([businessAction])
+  @@index([aiRegionStatus])
+}
+
+model ReplaySegment {
+  id            String      @id @default(cuid())
+  tenantId      String
+  applicationId String
+  journeyId     String?
+  sessionId     String
+  anonymousId   String?
+  userId        String?
+  segmentId     String
+  source        String      @default("rrweb")
+  schemaVersion String      @default("rrweb-v1")
+  startedAt     DateTime
+  endedAt       DateTime?
+  eventCount    Int         @default(0)
+  payload       Json
+  compressed    Boolean     @default(false)
+  encoding      String?
+  receivedAt    DateTime    @default(now())
+  tenant        Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  journey       Journey?    @relation(fields: [journeyId], references: [id], onDelete: SetNull)
+
+  @@unique([applicationId, segmentId])
+  @@index([tenantId, receivedAt])
+  @@index([applicationId, sessionId, startedAt])
+  @@index([journeyId])
 }
 
 model ProjectFinding {

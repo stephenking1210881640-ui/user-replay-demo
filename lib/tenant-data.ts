@@ -1,6 +1,7 @@
 import {
   ApplicationStatus,
   JourneyResultStatus,
+  JourneySource,
   Prisma,
   TagSource,
   TagType,
@@ -9,6 +10,7 @@ import {
 } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
+import { aggregateBrowserEventsForTenant } from "@/lib/journey-aggregation";
 
 type SearchParamValue = string | string[] | undefined;
 type SearchParams = Record<string, SearchParamValue>;
@@ -245,9 +247,10 @@ export async function getTenantList(searchParams?: SearchParams) {
 
 export async function getTenantOverviewData(tenantSlug: string) {
   const tenant = await getTenantOrThrow(tenantSlug);
+  await aggregateBrowserEventsForTenant(tenant.id);
   const last7dStart = buildStartDate("7d")!;
 
-  const [journeys, recentProjects, recentActiveUsers, appCount, projectCount] = await Promise.all([
+  const [journeys, recentProjects, recentActiveUsers, appCount, projectCount, realJourneyCount, demoJourneyCount] = await Promise.all([
     findManyWithRetry(() =>
       prisma.journey.findMany({
         where: {
@@ -303,6 +306,16 @@ export async function getTenantOverviewData(tenantSlug: string) {
         where: { tenantId: tenant.id },
       }),
     ),
+    countWithRetry(() =>
+      prisma.journey.count({
+        where: { tenantId: tenant.id, source: JourneySource.REAL, startedAt: { gte: last7dStart } },
+      }),
+    ),
+    countWithRetry(() =>
+      prisma.journey.count({
+        where: { tenantId: tenant.id, source: JourneySource.DEMO, startedAt: { gte: last7dStart } },
+      }),
+    ),
   ]);
 
   const normalizedJourneys = journeys.map(normalizeJourneyNarrative);
@@ -334,6 +347,8 @@ export async function getTenantOverviewData(tenantSlug: string) {
       anomalyCount,
       unfinishedCount,
       successRate: normalizedJourneys.length ? Math.round((successCount / normalizedJourneys.length) * 100) : 0,
+      realJourneyCount,
+      demoJourneyCount,
     },
     recentAnomalyJourneys: abnormalJourneys,
     recentProjects,
@@ -448,6 +463,7 @@ export async function getTenantApplicationDetail(tenantSlug: string, appId: stri
 
 export async function getTenantUsers(tenantSlug: string, searchParams: SearchParams) {
   const tenant = await getTenantOrThrow(tenantSlug);
+  await aggregateBrowserEventsForTenant(tenant.id);
   const query = readParam(searchParams.query);
   const tag = readParam(searchParams.tag);
   const device = readParam(searchParams.device);
@@ -634,6 +650,7 @@ export async function getTenantUserDetail(tenantSlug: string, userId: string) {
 
 export async function getTenantJourneys(tenantSlug: string, searchParams: SearchParams) {
   const tenant = await getTenantOrThrow(tenantSlug);
+  await aggregateBrowserEventsForTenant(tenant.id);
   const range = readParam(searchParams.range);
   const userId = readParam(searchParams.userId);
   const userTag = readParam(searchParams.userTag);
@@ -756,6 +773,8 @@ export async function getTenantJourneyDetailShell(tenantSlug: string, journeyId:
         effectiveDurationMs: true,
         resultStatus: true,
         hasAnomaly: true,
+        source: true,
+        sessionId: true,
         pageTemplate: true,
         pageTitle: true,
         businessActionType: true,
@@ -1043,6 +1062,7 @@ export async function getTenantTagManagementData(tenantSlug: string) {
 
 export async function getTenantIntegrationOverview(tenantSlug: string) {
   const tenant = await getTenantOrThrow(tenantSlug);
+  const aggregationResult = await aggregateBrowserEventsForTenant(tenant.id);
   const last24hStart = buildStartDate("24h")!;
 
   const applications = await findManyWithRetry(() =>
@@ -1057,6 +1077,25 @@ export async function getTenantIntegrationOverview(tenantSlug: string) {
           select: {
             users: true,
             journeys: true,
+            browserEvents: true,
+          },
+        },
+        browserEvents: {
+          orderBy: { receivedAt: "desc" },
+          take: 5,
+          select: {
+            id: true,
+            eventId: true,
+            eventType: true,
+            sessionId: true,
+            userId: true,
+            anonymousId: true,
+            pageUrl: true,
+            pageTitle: true,
+            requestUrl: true,
+            requestStatus: true,
+            receivedAt: true,
+            timestamp: true,
           },
         },
         users: {
@@ -1099,6 +1138,7 @@ export async function getTenantIntegrationOverview(tenantSlug: string) {
     })),
     journeyCount24h,
     activeUsers24h,
+    aggregationResult,
   };
 }
 
@@ -1155,9 +1195,11 @@ export const journeyStatusLabelMap: Record<JourneyResultStatus, string> = {
 };
 
 export const applicationStatusLabelMap: Record<ApplicationStatus, string> = {
+  ACTIVE: "已启用",
+  INACTIVE: "未启用",
+  PENDING: "待接入",
   CONNECTED: "已连接",
   DEGRADED: "部分降级",
-  PENDING: "待接入",
 };
 
 export const tagTypeLabelMap: Record<TagType, string> = {

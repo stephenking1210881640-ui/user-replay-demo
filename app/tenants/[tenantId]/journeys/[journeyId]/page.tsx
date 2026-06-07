@@ -41,6 +41,7 @@ export default async function TenantJourneyDetailPage({
             <div className="flex items-center gap-2">
               <StatusPill label={journeyStatusLabelMap[journey.resultStatus]} tone={journey.resultStatus === "FAILED" ? "error" : journey.resultStatus === "COMPLETED" ? "success" : "warning"} />
               <StatusPill label={journey.hasAnomaly ? "高危异常" : "无明显异常"} tone={journey.hasAnomaly ? "error" : "neutral"} />
+              <StatusPill label={journey.source === "REAL" ? "真实聚合" : "Demo fallback"} tone={journey.source === "REAL" ? "info" : "neutral"} />
             </div>
           </>
         }

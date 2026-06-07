@@ -199,6 +199,7 @@ type TenantDataset = {
     host: string;
     description: string;
     status: ApplicationStatus;
+    ingestToken: string;
     createdAt: Date;
     updatedAt: Date;
     lastReportedAt: Date;
@@ -308,7 +309,8 @@ const datasets: TenantDataset[] = [
         appKey: "nebula_console_web",
         host: "console.nebula-tech.com",
         description: "企业控制台，包含 onboarding、workspace 和 upgrade 等核心链路。",
-        status: ApplicationStatus.CONNECTED,
+        status: ApplicationStatus.ACTIVE,
+        ingestToken: "igr_nebula_console_7f3a9c2d1e",
         createdAt: daysAgo(45),
         updatedAt: daysAgo(1),
         lastReportedAt: minutesAgo(5),
@@ -319,7 +321,8 @@ const datasets: TenantDataset[] = [
         appKey: "nebula_docs_web",
         host: "help.nebula-tech.com",
         description: "帮助中心与 API 文档站，观察信息理解与开发者浏览行为。",
-        status: ApplicationStatus.CONNECTED,
+        status: ApplicationStatus.ACTIVE,
+        ingestToken: "igr_nebula_docs_3b8d4f1a6c",
         createdAt: daysAgo(38),
         updatedAt: daysAgo(2),
         lastReportedAt: hoursAgo(6),
@@ -631,7 +634,8 @@ const datasets: TenantDataset[] = [
         appKey: "blueocean_checkout_web",
         host: "checkout.blueocean.com",
         description: "核心结算与支付站点。",
-        status: ApplicationStatus.CONNECTED,
+        status: ApplicationStatus.ACTIVE,
+        ingestToken: "igr_blueocean_checkout_9e2c6a1b7d",
         createdAt: daysAgo(32),
         updatedAt: daysAgo(1),
         lastReportedAt: minutesAgo(3),
@@ -642,7 +646,8 @@ const datasets: TenantDataset[] = [
         appKey: "blueocean_campaign_h5",
         host: "promo.blueocean.com",
         description: "营销活动页与商品详情浏览入口。",
-        status: ApplicationStatus.CONNECTED,
+        status: ApplicationStatus.ACTIVE,
+        ingestToken: "igr_blueocean_campaign_4c1f8e0b2a",
         createdAt: daysAgo(26),
         updatedAt: daysAgo(2),
         lastReportedAt: hoursAgo(4),
@@ -830,7 +835,8 @@ const datasets: TenantDataset[] = [
         appKey: "polar_classroom_web",
         host: "classroom.polar-edu.com",
         description: "课堂与作业工作台。",
-        status: ApplicationStatus.CONNECTED,
+        status: ApplicationStatus.ACTIVE,
+        ingestToken: "igr_polar_classroom_6d7a2c9e4b",
         createdAt: daysAgo(21),
         updatedAt: daysAgo(1),
         lastReportedAt: minutesAgo(12),
@@ -841,7 +847,8 @@ const datasets: TenantDataset[] = [
         appKey: "polar_enroll_h5",
         host: "enroll.polar-edu.com",
         description: "试听预约与课程报名 H5。",
-        status: ApplicationStatus.CONNECTED,
+        status: ApplicationStatus.ACTIVE,
+        ingestToken: "igr_polar_enroll_8b5f0d3c9a",
         createdAt: daysAgo(19),
         updatedAt: daysAgo(1),
         lastReportedAt: hoursAgo(5),

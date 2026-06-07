@@ -96,6 +96,9 @@ export default async function TenantJourneysPage({
                   <div className="font-semibold text-slate-900">{journey.journeyCode}</div>
                   <div className="mt-1 text-sm text-slate-500">{journey.user.externalId}</div>
                   <div className="mt-1 text-xs text-slate-400">{formatDateTimeFull(journey.startedAt)}</div>
+                  <div className="mt-2">
+                    <StatusPill label={journey.source === "REAL" ? "真实聚合" : "Demo fallback"} tone={journey.source === "REAL" ? "info" : "neutral"} />
+                  </div>
                 </TableCell>
                 <TableCell className="px-4 align-top text-sm text-slate-600">
                   <div>{journey.application.name}</div>

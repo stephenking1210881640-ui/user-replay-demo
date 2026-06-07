@@ -817,9 +817,11 @@ export const journeyStatusLabelMap: Record<JourneyResultStatus, string> = {
 };
 
 export const applicationStatusLabelMap: Record<ApplicationStatus, string> = {
+  ACTIVE: "已启用",
+  INACTIVE: "未启用",
+  PENDING: "待接入",
   CONNECTED: "已连接",
   DEGRADED: "部分降级",
-  PENDING: "待接入",
 };
 
 export const tagTypeLabelMap: Record<TagType, string> = {

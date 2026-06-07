@@ -94,7 +94,14 @@ export default async function TenantUsersPage({
                   </div>
                 </TableCell>
                 <TableCell className="max-w-[420px] px-4 align-top whitespace-normal text-sm leading-6 text-slate-600">
-                  {user.journeys[0]?.aiSummaryShort ?? "暂无旅程摘要"}
+                  {user.journeys[0] ? (
+                    <div className="space-y-2">
+                      <p>{user.journeys[0].aiSummaryShort}</p>
+                      <StatusPill label={user.journeys[0].source === "REAL" ? "真实聚合" : "Demo fallback"} tone={user.journeys[0].source === "REAL" ? "info" : "neutral"} />
+                    </div>
+                  ) : (
+                    "暂无旅程摘要"
+                  )}
                 </TableCell>
                 <TableCell className="px-4 align-top">
                   <div className="flex max-w-[220px] flex-wrap gap-2">
