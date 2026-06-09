@@ -5,11 +5,9 @@ import type {
   ApplicationAiProfileInput,
   ApplicationAiProfileOutput,
 } from "@/lib/application-ai-profiler";
+import { getAiModelRuntimeConfig } from "@/lib/ai-model-config";
 
 const promptVersion = "agent1-llm-profile-v1";
-const defaultBaseUrl = "https://it-ai.fineres.com/v1";
-const defaultProvider = "bailian";
-const defaultModel = "qwen3.6-plus";
 const requestTimeoutMs = 45_000;
 
 type Agent1LlmInput = {
@@ -164,16 +162,6 @@ const llmProfileSchema = z.object({
   sdkRecommendations: z.array(sdkRecommendationSchema).catch([]),
   confidenceNotes: z.array(confidenceNoteSchema).catch([]),
 });
-
-function getLlmConfig() {
-  const apiKey = process.env.OPENAI_API_KEY;
-  const baseUrl = (process.env.OPENAI_BASE_URL || defaultBaseUrl).replace(/\/+$/, "");
-  const provider = process.env.AGENT1_PROVIDER || defaultProvider;
-  const model = process.env.AGENT1_MODEL || defaultModel;
-  const enabled = process.env.AGENT1_LLM_ENABLED !== "0" && Boolean(apiKey);
-
-  return { apiKey, baseUrl, provider, model, enabled };
-}
 
 function truncate(value: string, maxLength: number) {
   return value.length > maxLength ? `${value.slice(0, maxLength)}...` : value;
@@ -332,12 +320,12 @@ function normalizeModelProfile(
 }
 
 export async function generateApplicationAiProfileWithLlm(input: Agent1LlmInput): Promise<Agent1LlmGenerationResult> {
-  const config = getLlmConfig();
+  const config = await getAiModelRuntimeConfig(input.input.tenantId, "agent1");
   const startedAt = Date.now();
 
   if (!config.enabled || !config.apiKey) {
     return {
-      profile: withLlmFallbackNote(input.heuristicProfile, "未配置模型密钥或 AGENT1_LLM_ENABLED=0，本次使用规则分析结果。"),
+      profile: withLlmFallbackNote(input.heuristicProfile, "未配置可用模型或模型配置已停用，本次使用规则分析结果。"),
       modelMetadata: {
         provider: config.provider,
         model: config.model,

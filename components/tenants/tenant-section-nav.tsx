@@ -12,6 +12,7 @@ const sectionItems = [
   { key: "journeys", label: "旅程" },
   { key: "projects", label: "研究项目" },
   { key: "tags", label: "标签" },
+  { key: "settings", label: "设置" },
 ];
 
 export function TenantSectionNav({ tenantSlug }: { tenantSlug: string }) {

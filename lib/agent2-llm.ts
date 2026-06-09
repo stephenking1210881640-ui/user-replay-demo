@@ -7,12 +7,10 @@ import type {
   ApplicationAiProfileForAgent2,
   JourneyForAgent2,
 } from "@/lib/journey-ai-analysis";
+import { getAiModelRuntimeConfig } from "@/lib/ai-model-config";
 import { sanitizeJourneyAiAnalysisOutput } from "@/lib/journey-ai-analysis";
 
 const promptVersion = "agent2-llm-journey-analysis-v1";
-const defaultBaseUrl = "https://it-ai.fineres.com/v1";
-const defaultProvider = "bailian";
-const defaultModel = "qwen3.6-plus";
 const requestTimeoutMs = 45_000;
 
 export type Agent2ModelMetadata = {
@@ -128,16 +126,6 @@ const llmAnalysisSchema = z.object({
   evidence: z.array(evidenceSchema).catch([]),
   productInsights: z.array(insightSchema).catch([]),
 });
-
-function getLlmConfig() {
-  const apiKey = process.env.OPENAI_API_KEY;
-  const baseUrl = (process.env.OPENAI_BASE_URL || defaultBaseUrl).replace(/\/+$/, "");
-  const provider = process.env.AGENT2_PROVIDER || process.env.AGENT1_PROVIDER || defaultProvider;
-  const model = process.env.AGENT2_MODEL || process.env.AGENT1_MODEL || defaultModel;
-  const enabled = process.env.AGENT2_LLM_ENABLED !== "0" && Boolean(apiKey);
-
-  return { apiKey, baseUrl, provider, model, enabled };
-}
 
 function truncate(value: string | null | undefined, maxLength: number) {
   const normalized = value?.trim() ?? "";
@@ -366,7 +354,7 @@ export async function generateJourneyAiAnalysisWithLlm(input: {
   profile: ApplicationAiProfileForAgent2 | null;
   heuristicAnalysis: Agent2JourneyAnalysisOutput;
 }): Promise<Agent2LlmGenerationResult> {
-  const config = getLlmConfig();
+  const config = await getAiModelRuntimeConfig(input.journey.tenantId, "agent2");
   const startedAt = Date.now();
 
   if (!config.enabled || !config.apiKey) {
@@ -381,7 +369,7 @@ export async function generateJourneyAiAnalysisWithLlm(input: {
         fallbackUsed: true,
         enabled: false,
         latencyMs: Date.now() - startedAt,
-        error: "未配置模型密钥或 AGENT2_LLM_ENABLED=0。",
+        error: "未配置可用模型或模型配置已停用。",
       },
     };
   }

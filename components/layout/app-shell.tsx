@@ -76,7 +76,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         { href: `${tenantPrefix}/tags`, label: "标签管理", icon: Tags },
         { href: `${tenantPrefix}/projects`, label: "研究项目", icon: FolderKanban },
         { href: `${tenantPrefix}/journeys`, label: "用户旅程", icon: Search },
-        { href: "/settings", label: "设置中心", icon: Settings, disabled: true },
+        { href: `${tenantPrefix}/settings`, label: "设置中心", icon: Settings },
       ]
     : [
         { href: "/tenants", label: "企业租户", icon: Building2 },
