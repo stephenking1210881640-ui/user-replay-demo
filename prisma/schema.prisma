@@ -82,48 +82,56 @@ enum FindingCategory {
 }
 
 model Tenant {
-  id              String           @id @default(cuid())
-  name            String
-  slug            String           @unique
-  industry        String
-  plan            TenantPlan
-  status          TenantStatus
-  logoUrl         String?
-  description     String?
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-  applications    Application[]
-  users           User[]
-  journeys        Journey[]
-  tags            Tag[]
-  projects        Project[]
-  integrationLogs IntegrationLog[]
-  browserEvents   BrowserEvent[]
-  replaySegments  ReplaySegment[]
+  id                String                      @id @default(cuid())
+  name              String
+  slug              String                      @unique
+  industry          String
+  plan              TenantPlan
+  status            TenantStatus
+  logoUrl           String?
+  description       String?
+  createdAt         DateTime                    @default(now())
+  updatedAt         DateTime                    @updatedAt
+  applications      Application[]
+  users             User[]
+  journeys          Journey[]
+  tags              Tag[]
+  projects          Project[]
+  integrationLogs   IntegrationLog[]
+  browserEvents     BrowserEvent[]
+  replaySegments    ReplaySegment[]
+  aiProfiles        ApplicationAiProfile[]
+  journeyAiAnalyses JourneyAiAnalysis[]
+  agent1ModelLogs   Agent1ModelInteractionLog[]
+  agent2ModelLogs   Agent2ModelInteractionLog[]
 
   @@index([status, createdAt])
 }
 
 model Application {
-  id              String            @id @default(cuid())
-  tenantId        String
-  name            String
-  appKey          String
-  host            String
-  description     String
-  status          ApplicationStatus @default(PENDING)
-  ingestToken     String?
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
-  lastReportedAt  DateTime?
-  tenant          Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  users           User[]
-  tags            Tag[]
-  journeys        Journey[]
-  projects        Project[]
-  integrationLogs IntegrationLog[]
-  browserEvents   BrowserEvent[]
-  replaySegments  ReplaySegment[]
+  id                String                      @id @default(cuid())
+  tenantId          String
+  name              String
+  appKey            String
+  host              String
+  description       String
+  status            ApplicationStatus           @default(PENDING)
+  ingestToken       String?
+  createdAt         DateTime                    @default(now())
+  updatedAt         DateTime                    @updatedAt
+  lastReportedAt    DateTime?
+  tenant            Tenant                      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  users             User[]
+  tags              Tag[]
+  journeys          Journey[]
+  projects          Project[]
+  integrationLogs   IntegrationLog[]
+  browserEvents     BrowserEvent[]
+  replaySegments    ReplaySegment[]
+  aiProfiles        ApplicationAiProfile[]
+  journeyAiAnalyses JourneyAiAnalysis[]
+  agent1ModelLogs   Agent1ModelInteractionLog[]
+  agent2ModelLogs   Agent2ModelInteractionLog[]
 
   @@unique([tenantId, appKey])
   @@index([tenantId, createdAt])
@@ -186,11 +194,11 @@ model UserTag {
 }
 
 model Journey {
-  id                  String              @id @default(cuid())
+  id                  String                      @id @default(cuid())
   tenantId            String
   applicationId       String
   userId              String
-  journeyCode         String              @unique
+  journeyCode         String                      @unique
   title               String
   startedAt           DateTime
   endedAt             DateTime
@@ -200,7 +208,7 @@ model Journey {
   keyActionCount      Int
   requestCount        Int
   resultStatus        JourneyResultStatus
-  hasAnomaly          Boolean             @default(false)
+  hasAnomaly          Boolean                     @default(false)
   pageUrl             String
   pageTemplate        String
   pageTitle           String
@@ -210,21 +218,23 @@ model Journey {
   aiProcessSummary    String
   aiGoalAnalysis      String
   aiAnomalyAnalysis   String
-  source              JourneySource       @default(DEMO)
+  source              JourneySource               @default(DEMO)
   sessionId           String?
   anonymousId         String?
   externalUserId      String?
   aggregationVersion  String?
-  createdAt           DateTime            @default(now())
-  tenant              Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  application         Application         @relation(fields: [applicationId], references: [id], onDelete: Cascade)
-  user                User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt           DateTime                    @default(now())
+  tenant              Tenant                      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  application         Application                 @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  user                User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
   journeyTags         JourneyTag[]
   projectJourneys     ProjectJourney[]
   events              JourneyEvent[]
   evidences           Evidence[]
   browserEvents       BrowserEvent[]
   replaySegments      ReplaySegment[]
+  aiAnalyses          JourneyAiAnalysis[]
+  agent2ModelLogs     Agent2ModelInteractionLog[]
 
   @@index([tenantId, startedAt])
   @@index([applicationId, startedAt])
@@ -363,6 +373,70 @@ model Evidence {
   @@index([journeyId, offsetMs])
 }
 
+model JourneyAiAnalysis {
+  id                   String                      @id @default(cuid())
+  tenantId             String
+  applicationId        String
+  journeyId            String
+  goal                 String
+  goalConfidence       Float
+  processSummary       String
+  outcomeStatus        String
+  outcomeReason        String
+  outcomeConfidence    Float
+  keyStagesJson        Json
+  blockersJson         Json
+  anomaliesJson        Json
+  evidenceJson         Json
+  insightsJson         Json
+  agent1RulesJson      Json?
+  modelVersion         String                      @default("agent2-rules-v1")
+  generatedAt          DateTime                    @default(now())
+  createdAt            DateTime                    @default(now())
+  tenant               Tenant                      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  application          Application                 @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  journey              Journey                     @relation(fields: [journeyId], references: [id], onDelete: Cascade)
+  modelInteractionLogs Agent2ModelInteractionLog[]
+
+  @@index([tenantId, generatedAt])
+  @@index([applicationId, generatedAt])
+  @@index([journeyId, generatedAt])
+  @@map("journey_ai_analyses")
+}
+
+model Agent2ModelInteractionLog {
+  id                String             @id @default(cuid())
+  tenantId          String
+  applicationId     String
+  journeyId         String
+  analysisId        String?
+  provider          String
+  model             String
+  baseUrl           String?
+  promptVersion     String
+  status            String
+  generationMode    String
+  inputSystemPrompt String
+  inputUserPrompt   String
+  responseText      String?
+  responseJson      Json?
+  parsedOutputJson  Json?
+  errorMessage      String?
+  latencyMs         Int?
+  tokenUsageJson    Json?
+  createdAt         DateTime           @default(now())
+  tenant            Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  application       Application        @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  journey           Journey            @relation(fields: [journeyId], references: [id], onDelete: Cascade)
+  analysis          JourneyAiAnalysis? @relation(fields: [analysisId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, createdAt])
+  @@index([applicationId, createdAt])
+  @@index([journeyId, createdAt])
+  @@index([analysisId])
+  @@map("agent2_model_interaction_logs")
+}
+
 model IntegrationLog {
   id             String      @id @default(cuid())
   tenantId       String
@@ -378,6 +452,73 @@ model IntegrationLog {
 
   @@index([tenantId, createdAt])
   @@index([applicationId, createdAt])
+}
+
+model ApplicationAiProfile {
+  id                      String                      @id @default(cuid())
+  tenantId                String
+  applicationId           String
+  sourceUrl               String
+  businessHint            String?
+  appPurpose              String
+  appSummary              String
+  pageMapJson             Json
+  regionsJson             Json
+  interactiveElementsJson Json
+  journeysJson            Json
+  successRulesJson        Json
+  failureRulesJson        Json
+  sdkRecommendationsJson  Json
+  confidenceNotesJson     Json
+  crawlMetadataJson       Json
+  inputSnapshotJson       Json?
+  modelOutputJson         Json?
+  modelMetadataJson       Json?
+  provider                String?
+  model                   String?
+  promptVersion           String?
+  generationMode          String                      @default("heuristic")
+  fallbackUsed            Boolean                     @default(false)
+  version                 String                      @default("agent1-v1")
+  generatedAt             DateTime                    @default(now())
+  createdAt               DateTime                    @default(now())
+  tenant                  Tenant                      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  application             Application                 @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  modelInteractionLogs    Agent1ModelInteractionLog[]
+
+  @@index([tenantId, generatedAt])
+  @@index([applicationId, generatedAt])
+  @@map("application_ai_profiles")
+}
+
+model Agent1ModelInteractionLog {
+  id                String                @id @default(cuid())
+  tenantId          String
+  applicationId     String
+  profileId         String?
+  provider          String
+  model             String
+  baseUrl           String?
+  promptVersion     String
+  status            String
+  generationMode    String
+  inputSystemPrompt String
+  inputUserPrompt   String
+  responseText      String?
+  responseJson      Json?
+  parsedOutputJson  Json?
+  errorMessage      String?
+  latencyMs         Int?
+  tokenUsageJson    Json?
+  createdAt         DateTime              @default(now())
+  tenant            Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  application       Application           @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  profile           ApplicationAiProfile? @relation(fields: [profileId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, createdAt])
+  @@index([applicationId, createdAt])
+  @@index([profileId])
+  @@map("agent1_model_interaction_logs")
 }
 
 model BrowserEvent {

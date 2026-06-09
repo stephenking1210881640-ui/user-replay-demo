@@ -452,7 +452,7 @@ function getSemanticFromElement(element: Element | null, redactKeys: string[]) {
   const businessIntent = readAttribute(actionElement, ["data-ur-business-intent", "data-replay-business-intent"]);
   const targetLabel = readAttribute(actionElement, ["data-ur-label", "aria-label", "title"]);
 
-  return {
+  const semantic: CollectorSemantic = {
     region,
     regionSource: region ? "data_attribute" : undefined,
     regionConfidence: region ? 1 : undefined,
@@ -469,7 +469,9 @@ function getSemanticFromElement(element: Element | null, redactKeys: string[]) {
       },
       redactKeys,
     ),
-  } satisfies CollectorSemantic;
+  };
+
+  return semantic;
 }
 
 function getElementDescriptor(element: Element | null) {
@@ -867,7 +869,7 @@ class BrowserJourneyCollector implements JourneyCollector {
       const shouldSkip = collector.shouldSkipNetworkUrl(request.url);
 
       try {
-        const response = await collector.originalFetch!(input, init);
+        const response = await collector.originalFetch!(input as RequestInfo, init);
         if (!shouldSkip) {
           collector.capture("network_request", {
             request: {

@@ -72,7 +72,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         { href: "/tenants", label: "企业租户", icon: Building2 },
         { href: `${tenantPrefix}/overview`, label: "租户概览", icon: LayoutGrid },
         { href: `${tenantPrefix}/applications`, label: "应用列表", icon: LayoutGrid },
-        { href: `${tenantPrefix}/integration`, label: "接入配置", icon: LayoutGrid },
         { href: `${tenantPrefix}/users`, label: "用户管理", icon: Users },
         { href: `${tenantPrefix}/tags`, label: "标签管理", icon: Tags },
         { href: `${tenantPrefix}/projects`, label: "研究项目", icon: FolderKanban },
@@ -86,7 +85,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-screen bg-[var(--bg-main)] text-slate-900">
-      <aside className="hidden w-60 shrink-0 flex-col bg-[var(--bg-sidebar)] text-slate-300 lg:flex">
+      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col bg-[var(--bg-sidebar)] text-slate-300 lg:flex">
         <div className="flex h-16 items-center gap-3 border-b border-white/5 px-5">
           <div className="h-6 w-6 rounded-md bg-[linear-gradient(135deg,#2563eb,#8b5cf6)]" />
           <div>
@@ -95,30 +94,32 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </div>
 
-        <nav className="flex flex-1 flex-col gap-1 px-3 py-4">
-          {navItems.map(({ href, label, icon: Icon, disabled }) => {
-            const active = pathname === href || (href !== "/tenants" && pathname.startsWith(href));
+        <nav className="min-h-0 flex-1 overflow-y-auto px-3 py-4">
+          <div className="flex flex-col gap-1">
+            {navItems.map(({ href, label, icon: Icon, disabled }) => {
+              const active = pathname === href || (href !== "/tenants" && pathname.startsWith(href));
 
-            return (
-              <Link
-                key={href}
-                href={disabled ? "#" : href}
-                className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition",
-                  active
-                    ? "bg-[var(--primary)] text-white"
-                    : "text-slate-300 hover:bg-white/5 hover:text-white",
-                  disabled && "cursor-not-allowed opacity-50 hover:bg-transparent hover:text-slate-300"
-                )}
-              >
-                <Icon className="h-4 w-4" />
-                <span>{label}</span>
-              </Link>
-            );
-          })}
+              return (
+                <Link
+                  key={href}
+                  href={disabled ? "#" : href}
+                  className={cn(
+                    "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition",
+                    active
+                      ? "bg-[var(--primary)] text-white"
+                      : "text-slate-300 hover:bg-white/5 hover:text-white",
+                    disabled && "cursor-not-allowed opacity-50 hover:bg-transparent hover:text-slate-300"
+                  )}
+                >
+                  <Icon className="h-4 w-4" />
+                  <span>{label}</span>
+                </Link>
+              );
+            })}
+          </div>
         </nav>
 
-        <div className="border-t border-white/5 px-3 py-4">
+        <div className="shrink-0 border-t border-white/5 px-3 py-4">
           {tenantSlug ? (
             <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
               <div className="text-xs text-slate-500">当前租户状态</div>

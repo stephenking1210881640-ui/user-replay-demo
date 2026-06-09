@@ -3,20 +3,12 @@
 import { useMemo, useState } from "react";
 import {
   AlertTriangle,
-  FolderKanban,
-  MousePointerClick,
   Network,
-  PanelTopOpen,
-  Tags,
   TimerReset,
-  UserCircle2,
 } from "lucide-react";
 
-import { AddToProjectDialog } from "@/components/journeys/add-to-project-dialog";
-import { AssignTagDialog } from "@/components/shared/assign-tag-dialog";
 import { SectionCard } from "@/components/shared/section-card";
 import { StatusPill } from "@/components/shared/status-pill";
-import { TagChip } from "@/components/shared/tag-chip";
 import { formatDateTimeFull, formatDuration } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -139,12 +131,9 @@ function toneForSeverity(severity: string) {
 }
 
 export function JourneyPlayback({
-  tenantSlug,
   journey,
   events,
   evidences,
-  projects,
-  availableJourneyTags,
 }: JourneyPlaybackProps) {
   const [selectedEventId, setSelectedEventId] = useState(events[0]?.id ?? "");
   const selectedEvent =
@@ -177,22 +166,24 @@ export function JourneyPlayback({
   );
 
   const contextRows = [
-    { label: "page", value: selectedEvent?.pageUrl ?? journey.pageUrl },
-    { label: "template", value: selectedEvent?.pageTemplate ?? journey.pageTemplate },
+    { label: "page", name: "页面地址", value: selectedEvent?.pageUrl ?? journey.pageUrl },
+    { label: "template", name: "页面模板", value: selectedEvent?.pageTemplate ?? journey.pageTemplate },
     {
       label: "region",
+      name: "区域识别",
       value: selectedEvent?.region
         ? `${selectedEvent.region}${selectedEvent.regionSource ? ` · ${selectedEvent.regionSource}` : ""}`
         : selectedEvent?.aiRegionStatus === "PENDING"
           ? "待 AI 解构"
           : "未识别",
     },
-    { label: "action", value: selectedEvent?.uiAction ?? selectedEvent?.businessAction ?? "无" },
-    { label: "target", value: selectedEvent?.targetLabel ?? selectedEvent?.targetText ?? "无" },
-    { label: "selector", value: selectedEvent?.targetSelector ?? "无" },
-    { label: "request", value: selectedEvent?.requestUrl ?? selectedEvent?.pathTemplate ?? "无" },
+    { label: "action", name: "动作语义", value: selectedEvent?.uiAction ?? selectedEvent?.businessAction ?? "无" },
+    { label: "target", name: "交互对象", value: selectedEvent?.targetLabel ?? selectedEvent?.targetText ?? "无" },
+    { label: "selector", name: "选择器", value: selectedEvent?.targetSelector ?? "无" },
+    { label: "request", name: "请求信息", value: selectedEvent?.requestUrl ?? selectedEvent?.pathTemplate ?? "无" },
     {
       label: "result",
+      name: "结果反馈",
       value:
         selectedEvent?.requestOutcome ??
         selectedEvent?.uiFeedback ??
@@ -202,39 +193,41 @@ export function JourneyPlayback({
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(360px,0.8fr)]">
-        <div className="overflow-hidden rounded-2xl border border-[var(--border-light)] bg-white shadow-[var(--card-shadow)]">
-          <div className="flex items-center gap-3 border-b border-[var(--border-light)] px-4 py-3">
-            <div className="flex items-center gap-1.5">
-              <span className="h-3 w-3 rounded-full bg-rose-400" />
-              <span className="h-3 w-3 rounded-full bg-amber-400" />
-              <span className="h-3 w-3 rounded-full bg-emerald-400" />
-            </div>
-            <div className="rounded-full border border-[var(--border-light)] bg-slate-50 px-3 py-1 text-xs text-slate-500">
-              {journey.pageUrl}
-            </div>
+      <div className="overflow-hidden rounded-2xl border border-[var(--border-light)] bg-white shadow-[var(--card-shadow)]">
+        <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[var(--border-light)] px-5 py-4">
+          <div>
+            <h2 className="text-[15px] font-semibold text-slate-900">时间轴分析</h2>
+            <p className="mt-1 text-xs text-slate-500">点击任意时间戳，右侧同步展示该节点的关键信息、上下文和证据。</p>
           </div>
+          <div className="flex flex-wrap gap-2">
+            <StatusPill label={`${events.length} 个时间点`} tone="info" />
+            <StatusPill label={`总时长 ${formatDuration(journey.totalDurationMs)}`} tone="neutral" />
+          </div>
+        </div>
 
-          <div className="space-y-4 bg-[linear-gradient(180deg,#f8fbff_0%,#f3f7fb_100%)] p-5">
-            <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
-              <div className="space-y-4">
+        <div className="grid gap-6 bg-[linear-gradient(180deg,#f8fbff_0%,#f3f7fb_100%)] p-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(360px,0.9fr)]">
+          <div className="space-y-5">
+            <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+              <div className="flex items-center gap-3 border-b border-slate-200 px-4 py-3">
+                <div className="flex items-center gap-1.5">
+                  <span className="h-3 w-3 rounded-full bg-rose-400" />
+                  <span className="h-3 w-3 rounded-full bg-amber-400" />
+                  <span className="h-3 w-3 rounded-full bg-emerald-400" />
+                </div>
+                <div className="min-w-0 truncate rounded-full border border-[var(--border-light)] bg-slate-50 px-3 py-1 text-xs text-slate-500">
+                  {selectedEvent?.pageUrl ?? journey.pageUrl}
+                </div>
+              </div>
+
+              <div className="space-y-4 p-4">
                 <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                   <div className="flex items-start justify-between gap-4">
                     <div>
-                      <div className="text-xs font-medium uppercase tracking-[0.12em] text-slate-400">
-                        当前关键帧
-                      </div>
-                      <div className="mt-2 text-lg font-semibold text-slate-900">
-                        {selectedEvent?.title ?? "暂无事件"}
-                      </div>
-                      <p className="mt-2 text-sm leading-6 text-slate-600">
-                        {selectedEvent?.description}
-                      </p>
+                      <div className="text-xs font-medium uppercase tracking-[0.12em] text-slate-400">当前关键帧</div>
+                      <div className="mt-2 text-lg font-semibold text-slate-900">{selectedEvent?.title ?? "暂无事件"}</div>
+                      <p className="mt-2 text-sm leading-6 text-slate-600">{selectedEvent?.description ?? "当前旅程还没有可展示的时间线节点。"}</p>
                     </div>
-                    <StatusPill
-                      label={selectedEvent?.isAnomaly ? "异常锚点" : "关键节点"}
-                      tone={selectedEvent?.isAnomaly ? "error" : "info"}
-                    />
+                    <StatusPill label={selectedEvent?.isAnomaly ? "异常锚点" : "关键节点"} tone={selectedEvent?.isAnomaly ? "error" : "info"} />
                   </div>
                 </div>
 
@@ -258,17 +251,12 @@ export function JourneyPlayback({
                 <div className="rounded-2xl border border-slate-200 bg-white p-4">
                   <div className="mb-3 flex items-center justify-between">
                     <div className="text-sm font-semibold text-slate-900">时间轨道</div>
-                    <div className="text-xs text-slate-500">
-                      总时长 {formatDuration(journey.totalDurationMs)}
-                    </div>
+                    <div className="text-xs text-slate-500">点击圆点定位节点</div>
                   </div>
                   <div className="relative h-10">
                     <div className="absolute left-0 right-0 top-1/2 h-1.5 -translate-y-1/2 rounded-full bg-slate-200" />
                     {events.map((event) => {
-                      const percent = Math.max(
-                        2,
-                        Math.min(98, (event.offsetMs / journey.totalDurationMs) * 100),
-                      );
+                      const percent = Math.max(2, Math.min(98, (event.offsetMs / journey.totalDurationMs) * 100));
                       return (
                         <button
                           key={event.id}
@@ -287,194 +275,84 @@ export function JourneyPlayback({
                   </div>
                 </div>
               </div>
+            </div>
 
-              <div className="space-y-4">
-                <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                  <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-900">
-                    <PanelTopOpen className="h-4 w-4" />
-                    当前节点上下文
-                  </div>
-                  <div className="space-y-3">
-                    {contextRows.map((item) => (
-                      <div key={item.label} className="rounded-xl bg-slate-50 p-3">
-                        <div className="text-xs uppercase tracking-[0.12em] text-slate-400">
-                          {item.label}
+            <SectionCard title="关键时间线" description="每个时间戳只展示判断节点所需的关键信息点。">
+              <div className="space-y-3">
+                {events.map((event) => (
+                  <button
+                    key={event.id}
+                    type="button"
+                    onClick={() => setSelectedEventId(event.id)}
+                    className={cn(
+                      "flex w-full items-start gap-3 rounded-2xl border p-4 text-left transition",
+                      selectedEventId === event.id ? "border-blue-200 bg-blue-50" : "border-slate-200 bg-white hover:bg-slate-50",
+                    )}
+                  >
+                    <div className={cn("mt-1 h-3 w-3 rounded-full", event.isAnomaly ? "bg-rose-500" : "bg-[var(--primary)]")} />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-sm font-semibold text-slate-900">{event.title}</span>
+                            <StatusPill label={eventTypeLabelMap[event.type] ?? event.type} tone={event.isAnomaly ? "error" : "neutral"} />
+                          </div>
+                          <p className="mt-1 text-sm leading-6 text-slate-600">{event.description}</p>
                         </div>
-                        <div className="mt-1 text-sm font-medium text-slate-900">{item.value}</div>
+                        <div className="shrink-0 text-right text-xs text-slate-400">
+                          <div>{formatDuration(event.offsetMs)}</div>
+                          <div className="mt-1">{formatDateTimeFull(event.occurredAt)}</div>
+                        </div>
                       </div>
-                    ))}
+                      <div className="mt-3 grid gap-2 text-xs text-slate-500 sm:grid-cols-3">
+                        <div className="rounded-xl bg-slate-50 px-3 py-2">区域：{event.region ?? (event.aiRegionStatus === "PENDING" ? "待 AI 解构" : "未识别")}</div>
+                        <div className="rounded-xl bg-slate-50 px-3 py-2">动作：{event.businessAction ?? event.uiAction ?? "无"}</div>
+                        <div className="rounded-xl bg-slate-50 px-3 py-2">结果：{event.requestOutcome ?? event.uiFeedback ?? (event.statusCode ? `HTTP ${event.statusCode}` : "无")}</div>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </SectionCard>
+          </div>
+
+          <div className="space-y-5 xl:sticky xl:top-6 xl:self-start">
+            <SectionCard title="当前时间戳关键信息" description="跟随左侧时间线选择实时切换。">
+              <div className="space-y-4">
+                <div className={cn("rounded-2xl border p-4", selectedEvent?.isAnomaly ? "border-rose-200 bg-rose-50" : "border-slate-200 bg-slate-50")}>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="text-sm font-semibold text-slate-900">{selectedEvent?.title ?? "暂无事件"}</div>
+                    <StatusPill label={selectedEvent?.isAnomaly ? "异常节点" : "普通节点"} tone={selectedEvent?.isAnomaly ? "error" : "neutral"} />
+                  </div>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">{selectedEvent?.description ?? "当前没有可解释的事件描述。"}</p>
+                  <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-500">
+                    <span>{formatDuration(selectedEvent?.offsetMs ?? 0)}</span>
+                    {selectedEvent ? <span>{formatDateTimeFull(selectedEvent.occurredAt)}</span> : null}
                   </div>
                 </div>
 
-                <div
-                  className={cn(
-                    "rounded-2xl border p-4",
-                    selectedEvent?.isAnomaly
-                      ? "border-rose-200 bg-rose-50"
-                      : "border-slate-200 bg-white",
-                  )}
-                >
+                <div className="rounded-2xl border border-slate-200 bg-white p-4">
                   <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
                     <AlertTriangle className="h-4 w-4" />
                     当前节点判断
                   </div>
                   <p className="mt-2 text-sm leading-6 text-slate-600">
                     {selectedEvent?.isAnomaly
-                      ? "该节点存在异常信号，建议结合右侧证据与失败请求一起判断是否为直接阻断点。"
+                      ? "该节点存在异常信号，建议结合证据区与失败请求判断是否为直接阻断点。"
                       : "该节点没有直接技术异常，更适合观察用户理解成本、路径连续性与反馈是否充分。"}
                   </p>
                 </div>
               </div>
-            </div>
-          </div>
-        </div>
+            </SectionCard>
 
-        <div className="space-y-4">
-          <SectionCard
-            title="旅程基础信息卡"
-            description="第一屏先回答这是谁、发生了什么、结果如何。"
-            className="border-[var(--border-light)] shadow-[var(--card-shadow)]"
-          >
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="rounded-2xl bg-slate-50 p-4">
-                <div className="text-xs text-slate-400">旅程 ID</div>
-                <div className="mt-1 font-mono text-sm font-semibold text-slate-900">
-                  {journey.journeyCode}
-                </div>
-              </div>
-              <div className="rounded-2xl bg-slate-50 p-4">
-                <div className="text-xs text-slate-400">用户 ID</div>
-                <div className="mt-1 font-mono text-sm font-semibold text-slate-900">
-                  {journey.user.externalId}
-                </div>
-              </div>
-              <div className="rounded-2xl bg-slate-50 p-4">
-                <div className="text-xs text-slate-400">开始时间</div>
-                <div className="mt-1 text-sm font-semibold text-slate-900">
-                  {formatDateTimeFull(journey.startedAt)}
-                </div>
-              </div>
-              <div className="rounded-2xl bg-slate-50 p-4">
-                <div className="text-xs text-slate-400">结束时间</div>
-                <div className="mt-1 text-sm font-semibold text-slate-900">
-                  {formatDateTimeFull(journey.endedAt)}
-                </div>
-              </div>
-              <div className="rounded-2xl bg-slate-50 p-4">
-                <div className="text-xs text-slate-400">总时长 / 有效时长</div>
-                <div className="mt-1 text-sm font-semibold text-slate-900">
-                  {formatDuration(journey.totalDurationMs)} / {formatDuration(journey.effectiveDurationMs)}
-                </div>
-              </div>
-              <div className="rounded-2xl bg-slate-50 p-4">
-                <div className="text-xs text-slate-400">状态</div>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  <StatusPill
-                    label={journey.resultStatusLabel}
-                    tone={journey.hasAnomaly ? "error" : "success"}
-                  />
-                  <StatusPill
-                    label={journey.hasAnomaly ? "存在异常" : "无明显异常"}
-                    tone={journey.hasAnomaly ? "error" : "neutral"}
-                  />
-                </div>
-              </div>
-            </div>
-          </SectionCard>
-
-          <SectionCard
-            title="AI 总结"
-            description="固定结构输出，便于快速建立对这条旅程的统一理解。"
-            className="border-[var(--border-light)] shadow-[var(--card-shadow)]"
-          >
-            <div className="space-y-3">
-              <div className="rounded-2xl border border-violet-200 bg-[var(--ai-purple-light)] p-4">
-                <div className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--ai-purple)]">
-                  一句话总结
-                </div>
-                <p className="mt-2 text-sm leading-7 text-slate-800">{journey.aiSummaryShort}</p>
-              </div>
-              <div className="rounded-2xl bg-slate-50 p-4">
-                <div className="text-xs text-slate-400">使用场景还原</div>
-                <div className="mt-2 text-sm leading-7 text-slate-700">{journey.aiScenarioSummary}</div>
-              </div>
-              <div className="rounded-2xl bg-slate-50 p-4">
-                <div className="text-xs text-slate-400">行为过程还原</div>
-                <div className="mt-2 text-sm leading-7 text-slate-700">{journey.aiProcessSummary}</div>
-              </div>
-              <div className="rounded-2xl bg-slate-50 p-4">
-                <div className="text-xs text-slate-400">目标达成分析</div>
-                <div className="mt-2 text-sm leading-7 font-medium text-slate-900">
-                  {journey.aiGoalAnalysis}
-                </div>
-              </div>
-              <div
-                className={cn(
-                  "rounded-2xl p-4",
-                  journey.hasAnomaly ? "bg-rose-50 text-rose-700" : "bg-amber-50 text-amber-700",
-                )}
-              >
-                <div className="text-xs opacity-80">异常行为摘要</div>
-                <div className="mt-2 text-sm leading-7 font-medium">{journey.aiAnomalyAnalysis}</div>
-              </div>
-            </div>
-          </SectionCard>
-        </div>
-      </div>
-
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(340px,0.9fr)]">
-        <SectionCard
-          title="关键时间线"
-          description="按时间顺序串联页面进入、关键动作、请求完成与异常事件。"
-        >
-          <div className="space-y-3">
-            {events.map((event) => (
-              <button
-                key={event.id}
-                type="button"
-                onClick={() => setSelectedEventId(event.id)}
-                className={cn(
-                  "flex w-full items-start gap-3 rounded-2xl border p-4 text-left transition",
-                  selectedEventId === event.id
-                    ? "border-blue-200 bg-blue-50"
-                    : "border-slate-200 bg-white hover:bg-slate-50",
-                )}
-              >
-                <div
-                  className={cn(
-                    "mt-1 h-3 w-3 rounded-full",
-                    event.isAnomaly ? "bg-rose-500" : "bg-[var(--primary)]",
-                  )}
-                />
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-sm font-semibold text-slate-900">{event.title}</span>
-                        <StatusPill
-                          label={eventTypeLabelMap[event.type] ?? event.type}
-                          tone={event.isAnomaly ? "error" : "neutral"}
-                        />
-                      </div>
-                      <p className="mt-1 text-sm leading-6 text-slate-600">{event.description}</p>
-                    </div>
-                    <div className="text-right text-xs text-slate-400">
-                      <div>{formatDuration(event.offsetMs)}</div>
-                      <div className="mt-1">{formatDateTimeFull(event.occurredAt)}</div>
-                    </div>
-                  </div>
-                </div>
-              </button>
-            ))}
-          </div>
-        </SectionCard>
-
-        <div className="space-y-6">
           <SectionCard title="上下文信息区" description="围绕当前选中节点查看 page / region / action / request / result。">
             <div className="grid gap-3">
               {contextRows.map((item) => (
                 <div key={item.label} className="rounded-2xl bg-slate-50 p-4">
-                  <div className="text-xs uppercase tracking-[0.14em] text-slate-400">{item.label}</div>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="text-xs uppercase tracking-[0.14em] text-slate-400">{item.label}</div>
+                    <div className="text-xs text-slate-400">{item.name}</div>
+                  </div>
                   <div className="mt-2 text-sm font-medium text-slate-900">{item.value}</div>
                 </div>
               ))}
@@ -542,81 +420,16 @@ export function JourneyPlayback({
                       ) : null}
                     </div>
                   ))}
+                  {relatedEvidence.length === 0 && feedbackEvidence.length === 0 ? (
+                    <div className="rounded-xl bg-white p-3 text-sm text-slate-500">暂无 toast、dialog、截图或 DOM 证据。</div>
+                  ) : null}
                 </div>
               </div>
             </div>
           </SectionCard>
 
-          <SectionCard title="标签与研究项目" description="把当前旅程沉淀为可追踪、可复用的研究项目素材。">
-            <div className="space-y-4">
-              <div>
-                <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-900">
-                  <Tags className="h-4 w-4" />
-                  旅程标签
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {journey.journeyTags.map(({ tag }) => (
-                    <TagChip key={tag.id} label={tag.name} color={tag.color} />
-                  ))}
-                </div>
-                <div className="mt-3">
-                  <AssignTagDialog
-                    entityId={journey.id}
-                    entityType="journeys"
-                    tenantSlug={tenantSlug}
-                    title="为旅程添加标签"
-                    description="将当前旅程归为统一标签语义，便于后续检索与研究。"
-                    tags={availableJourneyTags}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-900">
-                  <UserCircle2 className="h-4 w-4" />
-                  关联用户标签
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {journey.user.userTags.map(({ tag }) => (
-                    <TagChip key={tag.id} label={tag.name} color={tag.color} />
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-900">
-                  <FolderKanban className="h-4 w-4" />
-                  当前研究项目
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {journey.projectJourneys.length === 0 ? (
-                    <span className="text-sm text-slate-500">尚未归档到研究项目。</span>
-                  ) : (
-                    journey.projectJourneys.map(({ project }) => (
-                      <TagChip key={project.id} label={project.name} />
-                    ))
-                  )}
-                </div>
-                <div className="mt-3">
-                  <AddToProjectDialog
-                    journeyId={journey.id}
-                    tenantSlug={tenantSlug}
-                    projects={projects}
-                    currentProjectIds={journey.projectJourneys.map(({ project }) => project.id)}
-                  />
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
-                <div className="mb-2 flex items-center gap-2 font-semibold">
-                  <MousePointerClick className="h-4 w-4" />
-                  研究项目建议
-                </div>
-                当前旅程具备明确目标、清晰转折点和可回溯证据，适合加入研究项目持续追踪。
-              </div>
-            </div>
-          </SectionCard>
         </div>
+      </div>
       </div>
     </div>
   );

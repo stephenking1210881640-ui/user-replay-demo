@@ -6,5 +6,5 @@ export const dynamic = "force-dynamic";
 
 export default async function IntegrationPage() {
   const tenantSlug = await getDefaultTenantSlug();
-  redirect(tenantSlug ? `/tenants/${tenantSlug}/integration` : "/tenants");
+  redirect(tenantSlug ? `/tenants/${tenantSlug}/applications` : "/tenants");
 }

@@ -24,7 +24,7 @@ Browser Collector SDK
 - `/tenants/[tenantId]/overview`
 - `/tenants/[tenantId]/users`
 - `/tenants/[tenantId]/journeys`
-- `/tenants/[tenantId]/integration`
+- `/tenants/[tenantId]/applications/[appId]`
 
 2. 手动 API 触发
 
@@ -92,7 +92,7 @@ curl -X POST http://localhost:3000/api/jobs/aggregate-browser-events \
 1. 在 `/tenants/[tenantId]/applications` 创建测试应用。
 2. 将 Browser Collector SDK 接入外部应用。
 3. 打开外部应用并触发页面浏览、点击、表单或请求。
-4. 在 `/tenants/[tenantId]/integration` 查看“当前应用最近原始事件”。
+4. 在 `/tenants/[tenantId]/applications/[appId]` 或旅程列表查看最近真实数据。
 5. 刷新 `/tenants/[tenantId]/journeys`，页面会自动尝试聚合未处理事件。
 6. 在 journeys 列表中查看带“真实聚合”标识的旅程。
 7. 打开旅程详情，查看由真实事件生成的时间线、摘要和证据。

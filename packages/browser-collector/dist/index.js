@@ -283,7 +283,7 @@ function getSemanticFromElement(element, redactKeys) {
     const businessAction = readAttribute(actionElement, ["data-ur-business-action", "data-replay-business-action"]);
     const businessIntent = readAttribute(actionElement, ["data-ur-business-intent", "data-replay-business-intent"]);
     const targetLabel = readAttribute(actionElement, ["data-ur-label", "aria-label", "title"]);
-    return {
+    const semantic = {
         region,
         regionSource: region ? "data_attribute" : undefined,
         regionConfidence: region ? 1 : undefined,
@@ -298,6 +298,7 @@ function getSemanticFromElement(element, redactKeys) {
             actionData: readTrackingData(actionElement),
         }, redactKeys),
     };
+    return semantic;
 }
 function getElementDescriptor(element) {
     if (!element) {

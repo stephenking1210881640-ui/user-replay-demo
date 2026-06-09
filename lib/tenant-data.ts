@@ -11,6 +11,12 @@ import {
 
 import { prisma } from "@/lib/prisma";
 import { aggregateBrowserEventsForTenant } from "@/lib/journey-aggregation";
+import {
+  buildJourneyAiListSummary,
+  ensureJourneyAiAnalysis,
+  toJourneyAiAnalysisViewModel,
+  type JourneyAiAnalysisRecord,
+} from "@/lib/journey-ai-analysis";
 
 type SearchParamValue = string | string[] | undefined;
 type SearchParams = Record<string, SearchParamValue>;
@@ -99,6 +105,46 @@ function normalizeJourneyNarrative<
     ),
     aiAnomalyAnalysis: ensureNarrativeText(journey.aiAnomalyAnalysis, anomalyLabel, 18),
   };
+}
+
+function normalizeJourneyWithAgent2<
+  T extends {
+    title: string;
+    pageTitle: string;
+    pageTemplate: string;
+    businessActionType: string;
+    resultStatus: JourneyResultStatus;
+    hasAnomaly: boolean;
+    aiSummaryShort: string;
+    aiScenarioSummary: string;
+    aiProcessSummary: string;
+    aiGoalAnalysis: string;
+    aiAnomalyAnalysis: string;
+    aiAnalyses?: JourneyAiAnalysisRecord[];
+  },
+>(journey: T): T {
+  const normalized = normalizeJourneyNarrative(journey);
+  const latestAnalysis = normalized.aiAnalyses?.[0];
+
+  if (!latestAnalysis) {
+    return normalized;
+  }
+
+  return {
+    ...normalized,
+    aiSummaryShort: buildJourneyAiListSummary(latestAnalysis, normalized.aiSummaryShort),
+  };
+}
+
+async function ensureJourneyAiAnalysisMap(journeyIds: string[], limit = 8) {
+  const uniqueJourneyIds = Array.from(new Set(journeyIds)).slice(0, limit);
+  const analyses = await Promise.all(uniqueJourneyIds.map((journeyId) => ensureJourneyAiAnalysis(journeyId)));
+
+  return new Map(
+    analyses
+      .filter((analysis): analysis is NonNullable<typeof analysis> => Boolean(analysis))
+      .map((analysis) => [analysis.journeyId, analysis]),
+  );
 }
 
 function sleep(ms: number) {
@@ -262,6 +308,10 @@ export async function getTenantOverviewData(tenantSlug: string) {
           journeyTags: {
             include: { tag: true },
           },
+          aiAnalyses: {
+            orderBy: { generatedAt: "desc" },
+            take: 1,
+          },
         },
         orderBy: { startedAt: "desc" },
       }),
@@ -318,7 +368,7 @@ export async function getTenantOverviewData(tenantSlug: string) {
     ),
   ]);
 
-  const normalizedJourneys = journeys.map(normalizeJourneyNarrative);
+  const normalizedJourneys = journeys.map(normalizeJourneyWithAgent2);
   const successCount = normalizedJourneys.filter((journey) => journey.resultStatus === "COMPLETED").length;
   const anomalyCount = normalizedJourneys.filter((journey) => journey.hasAnomaly).length;
   const unfinishedCount = normalizedJourneys.filter(
@@ -407,6 +457,14 @@ export async function getTenantApplicationDetail(tenantSlug: string, appId: stri
           orderBy: { createdAt: "desc" },
           take: 8,
         },
+        aiProfiles: {
+          orderBy: { generatedAt: "desc" },
+          take: 1,
+        },
+        agent1ModelLogs: {
+          orderBy: { createdAt: "desc" },
+          take: 3,
+        },
       },
     }),
   );
@@ -416,7 +474,7 @@ export async function getTenantApplicationDetail(tenantSlug: string, appId: stri
   }
 
   const last24hStart = buildStartDate("24h")!;
-  const [journeyCount24h, activeUsers24h, recentProjects] = await Promise.all([
+  const [journeyCount24h, activeUsers24h, recentProjects, recentJourneys] = await Promise.all([
     countWithRetry(() =>
       prisma.journey.count({
         where: {
@@ -450,6 +508,28 @@ export async function getTenantApplicationDetail(tenantSlug: string, appId: stri
         take: 4,
       }),
     ),
+    findManyWithRetry(() =>
+      prisma.journey.findMany({
+        where: {
+          tenantId: tenant.id,
+          applicationId: application.id,
+        },
+        include: {
+          user: {
+            select: {
+              externalId: true,
+              name: true,
+            },
+          },
+          aiAnalyses: {
+            orderBy: { generatedAt: "desc" },
+            take: 1,
+          },
+        },
+        orderBy: { startedAt: "desc" },
+        take: 4,
+      }),
+    ),
   ]);
 
   return {
@@ -458,6 +538,7 @@ export async function getTenantApplicationDetail(tenantSlug: string, appId: stri
     journeyCount24h,
     activeUsers24h,
     recentProjects,
+    recentJourneys: recentJourneys.map(normalizeJourneyWithAgent2),
   };
 }
 
@@ -511,6 +592,12 @@ export async function getTenantUsers(tenantSlug: string, searchParams: SearchPar
         journeys: {
           orderBy: { startedAt: "desc" },
           take: 1,
+          include: {
+            aiAnalyses: {
+              orderBy: { generatedAt: "desc" },
+              take: 1,
+            },
+          },
         },
         _count: {
           select: { journeys: true },
@@ -530,7 +617,7 @@ export async function getTenantUsers(tenantSlug: string, searchParams: SearchPar
     tenant,
     users: users.map((user) => ({
       ...user,
-      journeys: user.journeys.map(normalizeJourneyNarrative),
+      journeys: user.journeys.map(normalizeJourneyWithAgent2),
     })),
     availableTags,
   };
@@ -574,6 +661,10 @@ export async function getTenantUserDetailShell(tenantSlug: string, userId: strin
             journeyTags: {
               include: { tag: true },
             },
+            aiAnalyses: {
+              orderBy: { generatedAt: "desc" },
+              take: 1,
+            },
           },
         },
         _count: {
@@ -590,7 +681,7 @@ export async function getTenantUserDetailShell(tenantSlug: string, userId: strin
         tenant,
         user: {
           ...user,
-          journeys: user.journeys.map(normalizeJourneyNarrative),
+          journeys: user.journeys.map(normalizeJourneyWithAgent2),
         },
       }
     : null;
@@ -613,6 +704,10 @@ export async function getTenantUserDetail(tenantSlug: string, userId: string) {
           include: {
             journeyTags: {
               include: { tag: true },
+            },
+            aiAnalyses: {
+              orderBy: { generatedAt: "desc" },
+              take: 1,
             },
           },
           orderBy: { startedAt: "desc" },
@@ -642,7 +737,7 @@ export async function getTenantUserDetail(tenantSlug: string, userId: string) {
     tenant,
     user: {
       ...user,
-      journeys: user.journeys.map(normalizeJourneyNarrative),
+      journeys: user.journeys.map(normalizeJourneyWithAgent2),
     },
     availableTags,
   };
@@ -717,6 +812,10 @@ export async function getTenantJourneys(tenantSlug: string, searchParams: Search
               project: true,
             },
           },
+          aiAnalyses: {
+            orderBy: { generatedAt: "desc" },
+            take: 1,
+          },
         },
         orderBy: { startedAt: "desc" },
       }),
@@ -745,10 +844,16 @@ export async function getTenantJourneys(tenantSlug: string, searchParams: Search
       }),
     ),
   ]);
+  const aiAnalysisMap = await ensureJourneyAiAnalysisMap(journeys.map((journey) => journey.id));
 
   return {
     tenant,
-    journeys: journeys.map(normalizeJourneyNarrative),
+    journeys: journeys.map((journey) =>
+      normalizeJourneyWithAgent2({
+        ...journey,
+        aiAnalyses: aiAnalysisMap.get(journey.id) ? [aiAnalysisMap.get(journey.id)!] : journey.aiAnalyses,
+      }),
+    ),
     userTags,
     journeyTags,
     projects,
@@ -794,11 +899,27 @@ export async function getTenantJourneyDetailShell(tenantSlug: string, journeyId:
             id: true,
             externalId: true,
             name: true,
+            userTags: {
+              include: {
+                tag: true,
+              },
+            },
           },
         },
         journeyTags: {
           include: {
             tag: true,
+          },
+        },
+        projectJourneys: {
+          include: {
+            project: {
+              select: {
+                id: true,
+                name: true,
+                goal: true,
+              },
+            },
           },
         },
         events: {
@@ -818,12 +939,83 @@ export async function getTenantJourneyDetailShell(tenantSlug: string, journeyId:
     }),
   );
 
-  return journey
-    ? {
-        tenant,
-        journey: normalizeJourneyNarrative(journey),
-      }
-    : null;
+  if (!journey) {
+    return null;
+  }
+
+  const aiAnalysis = await ensureJourneyAiAnalysis(journey.id);
+  const [projects, availableJourneyTags, agent2ModelLogs] = await Promise.all([
+    findManyWithRetry(() =>
+      prisma.project.findMany({
+        where: { tenantId: tenant.id },
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          name: true,
+          goal: true,
+        },
+      }),
+    ),
+    findManyWithRetry(() =>
+      prisma.tag.findMany({
+        where: {
+          tenantId: tenant.id,
+          type: TagType.JOURNEY,
+          journeyTags: {
+            none: { journeyId: journey.id },
+          },
+        },
+        orderBy: { name: "asc" },
+      }),
+    ),
+    findManyWithRetry(() =>
+      prisma.agent2ModelInteractionLog.findMany({
+        where: {
+          tenantId: tenant.id,
+          journeyId: journey.id,
+        },
+        orderBy: { createdAt: "desc" },
+        take: 5,
+        select: {
+          id: true,
+          provider: true,
+          model: true,
+          baseUrl: true,
+          promptVersion: true,
+          status: true,
+          generationMode: true,
+          inputSystemPrompt: true,
+          inputUserPrompt: true,
+          responseText: true,
+          parsedOutputJson: true,
+          errorMessage: true,
+          latencyMs: true,
+          tokenUsageJson: true,
+          createdAt: true,
+          analysis: {
+            select: {
+              id: true,
+              modelVersion: true,
+              outcomeStatus: true,
+              generatedAt: true,
+            },
+          },
+        },
+      }),
+    ),
+  ]);
+
+  return {
+    tenant,
+    journey: normalizeJourneyWithAgent2({
+      ...journey,
+      aiAnalyses: aiAnalysis ? [aiAnalysis] : [],
+    }),
+    aiAnalysis: toJourneyAiAnalysisViewModel(aiAnalysis),
+    projects,
+    availableJourneyTags,
+    agent2ModelLogs,
+  };
 }
 
 export async function getTenantJourneyDetail(tenantSlug: string, journeyId: string) {
@@ -868,6 +1060,7 @@ export async function getTenantJourneyDetail(tenantSlug: string, journeyId: stri
     return null;
   }
 
+  const aiAnalysis = await ensureJourneyAiAnalysis(journey.id);
   const [projects, availableJourneyTags] = await Promise.all([
     findManyWithRetry(() =>
       prisma.project.findMany({
@@ -896,7 +1089,11 @@ export async function getTenantJourneyDetail(tenantSlug: string, journeyId: stri
 
   return {
     tenant,
-    journey: normalizeJourneyNarrative(journey),
+    journey: normalizeJourneyWithAgent2({
+      ...journey,
+      aiAnalyses: aiAnalysis ? [aiAnalysis] : [],
+    }),
+    aiAnalysis: toJourneyAiAnalysisViewModel(aiAnalysis),
     projects,
     availableJourneyTags,
   };
@@ -980,6 +1177,10 @@ export async function getTenantProjectDetail(tenantSlug: string, projectId: stri
                 journeyTags: {
                   include: { tag: true },
                 },
+                aiAnalyses: {
+                  orderBy: { generatedAt: "desc" },
+                  take: 1,
+                },
               },
             },
           },
@@ -1012,6 +1213,10 @@ export async function getTenantProjectDetail(tenantSlug: string, projectId: stri
         journeyTags: {
           include: { tag: true },
         },
+        aiAnalyses: {
+          orderBy: { generatedAt: "desc" },
+          take: 1,
+        },
       },
     }),
   );
@@ -1022,7 +1227,7 @@ export async function getTenantProjectDetail(tenantSlug: string, projectId: stri
       ...project,
       projectJourneys: project.projectJourneys.map((projectJourney) => ({
         ...projectJourney,
-        journey: normalizeJourneyNarrative(projectJourney.journey),
+        journey: normalizeJourneyWithAgent2(projectJourney.journey),
       })),
     },
     criteria: {
@@ -1031,7 +1236,7 @@ export async function getTenantProjectDetail(tenantSlug: string, projectId: stri
       statuses: splitCriteria(project.filterStatuses),
       tagRules: splitCriteria(project.filterTagRules),
     },
-    availableJourneys: availableJourneys.map(normalizeJourneyNarrative),
+    availableJourneys: availableJourneys.map(normalizeJourneyWithAgent2),
   };
 }
 
@@ -1097,6 +1302,10 @@ export async function getTenantIntegrationOverview(tenantSlug: string) {
             receivedAt: true,
             timestamp: true,
           },
+        },
+        aiProfiles: {
+          orderBy: { generatedAt: "desc" },
+          take: 1,
         },
         users: {
           where: {

@@ -93,7 +93,6 @@ export async function POST(request: Request, { params }: { params: { tenantId: s
   });
 
   revalidatePath(`/tenants/${tenant.slug}/applications`);
-  revalidatePath(`/tenants/${tenant.slug}/integration`);
   revalidatePath(`/tenants/${tenant.slug}/overview`);
 
   return NextResponse.json({ application }, { status: 201 });

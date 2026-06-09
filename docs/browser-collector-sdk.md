@@ -161,7 +161,7 @@ createJourneyCollector({
 ## 9. 验证方式
 
 1. 启动平台。
-2. 进入 `/tenants/[tenantId]/integration`。
+2. 进入 `/tenants/[tenantId]/applications/[appId]`。
 3. 选择应用，复制 `appKey` 与 `ingestToken`。
 4. 在业务应用初始化 SDK。
 5. 打开页面、点击按钮或执行：
@@ -173,7 +173,7 @@ collector.track("manual_verify", {
 await collector.flush();
 ```
 
-6. 回到 integration 页面查看：
+6. 回到应用详情页或旅程列表查看：
 
 - “当前应用最近校验日志”出现 `ingest.browser-events`
 - “当前应用最近原始事件”出现 `page_view`、`ui_click` 等事件

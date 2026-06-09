@@ -8,7 +8,6 @@ import { cn } from "@/lib/utils";
 const sectionItems = [
   { key: "overview", label: "概览" },
   { key: "applications", label: "应用" },
-  { key: "integration", label: "接入" },
   { key: "users", label: "用户" },
   { key: "journeys", label: "旅程" },
   { key: "projects", label: "研究项目" },

@@ -85,20 +85,12 @@ export default async function TenantApplicationsPage({ params }: { params: { ten
 
                 <div className="flex items-center justify-between">
                   <div className="text-xs text-slate-400">创建于 {formatDateTimeFull(application.createdAt)}</div>
-                  <div className="flex items-center gap-2">
-                    <Link
-                      href={`/tenants/${tenant.slug}/integration?appId=${application.id}`}
-                      className={cn(buttonVariants({ variant: "ghost" }), "h-8")}
-                    >
-                      接入配置
-                    </Link>
-                    <Link
-                      href={`/tenants/${tenant.slug}/applications/${application.id}`}
-                      className={cn(buttonVariants({ variant: "outline" }), "h-8")}
-                    >
-                      应用详情
-                    </Link>
-                  </div>
+                  <Link
+                    href={`/tenants/${tenant.slug}/applications/${application.id}`}
+                    className={cn(buttonVariants({ variant: "outline" }), "h-8")}
+                  >
+                    应用详情
+                  </Link>
                 </div>
               </div>
             </SectionCard>
